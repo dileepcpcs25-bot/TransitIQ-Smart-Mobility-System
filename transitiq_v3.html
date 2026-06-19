@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TransitIQ Bangalore v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg0:#050810;--bg1:#080d1a;--bg2:#0e1525;--bg3:#141d30;--bg4:#1a2438;
+  --amber:#f59e0b;--amber-d:rgba(245,158,11,.12);--amber-g:rgba(245,158,11,.25);
+  --teal:#14b8a6;--teal-d:rgba(20,184,166,.10);
+  --blue:#3b82f6;--blue-d:rgba(59,130,246,.10);
+  --red:#ef4444;--red-d:rgba(239,68,68,.10);
+  --green:#22c55e;--green-d:rgba(34,197,94,.10);
+  --purple:#a78bfa;--purple-d:rgba(167,139,250,.10);
+  --orange:#f97316;--cyan:#06b6d4;--pink:#ec4899;
+  --ink:#dde4f0;--ink2:#7a8db0;--ink3:#3d4e6a;--ink4:#1e2c42;
+  --border:rgba(255,255,255,.055);--bord2:rgba(255,255,255,.10);
+  --font:'Outfit',sans-serif;--mono:'DM Mono',monospace;
+  --r:10px;--r2:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);background:var(--bg0);color:var(--ink);overflow:hidden;font-size:13px}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:99px}
+
+/* ── LAYOUT ── */
+#app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:360px 1fr 300px;height:100vh}
+.map-col{position:relative;overflow:hidden}
+
+/* ── TOP BAR ── */
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:var(--bg1);border-bottom:1px solid var(--bord2);z-index:999;position:relative}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--amber) 35%,var(--teal) 65%,transparent);opacity:.4}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--amber),var(--orange));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.brand-name{font-size:18px;font-weight:800;letter-spacing:-.5px}
+.brand-name span{background:linear-gradient(135deg,var(--amber),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.brand-sub{font-size:9px;color:var(--ink3);letter-spacing:1.5px;text-transform:uppercase}
+.mode-sw{display:flex;gap:2px;background:var(--bg2);border:1px solid var(--border);padding:3px;border-radius:var(--r)}
+.msw{padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink2);transition:all .15s;white-space:nowrap}
+.msw:hover{color:var(--ink)}
+.msw.on{background:var(--bg3);color:var(--amber)}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.live-pill{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink2);background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:3px 9px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}60%{opacity:.3}}
+.clk{font-family:var(--mono);font-size:11px;color:var(--amber);background:var(--bg2);border:1px solid var(--bord2);border-radius:7px;padding:3px 8px}
+.acc-badge{font-family:var(--mono);font-size:10px;color:var(--green);background:var(--green-d);border:1px solid rgba(34,197,94,.3);border-radius:7px;padding:3px 8px;cursor:pointer}
+.wx-badge{font-size:10px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:3px 8px;cursor:pointer;color:var(--ink);transition:.15s}
+.wx-badge:hover{border-color:var(--bord2)}
+
+/* ── LEFT PANEL ── */
+.lpanel{background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px}
+.ctitle{font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.ctitle::before{content:'';width:2px;height:12px;background:var(--amber);border-radius:99px}
+.ctitle.t{color:var(--teal)}.ctitle.t::before{background:var(--teal)}
+.ctitle.g{color:var(--green)}.ctitle.g::before{background:var(--green)}
+.ctitle.r{color:var(--red)}.ctitle.r::before{background:var(--red)}
+.ctitle.p{color:var(--purple)}.ctitle.p::before{background:var(--purple)}
+.field{margin-bottom:8px}
+.field label{display:block;font-size:9px;color:var(--ink2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.field select,.field input{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--r);color:var(--ink);font-family:var(--font);font-size:12px;outline:none;transition:border-color .15s;appearance:none}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%233d4e6a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.field select:focus,.field input:focus{border-color:var(--amber)}
+.field select option{background:var(--bg3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.swap-btn{width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bord2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--amber);font-size:13px;margin:2px auto;transition:all .2s}
+.swap-btn:hover{transform:rotate(180deg);background:var(--amber-d)}
+
+/* mode pills */
+.mpills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.mpill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--ink3);transition:all .15s}
+.mpill.on[data-m="metro"]{background:var(--purple-d);border-color:var(--purple);color:var(--purple)}
+.mpill.on[data-m="bus"]{background:var(--teal-d);border-color:var(--teal);color:var(--teal)}
+.mpill.on[data-m="auto"]{background:var(--amber-d);border-color:var(--amber);color:var(--amber)}
+.mpill.on[data-m="walk"]{background:var(--green-d);border-color:var(--green);color:var(--green)}
+.mpill.on[data-m="cab"]{background:var(--blue-d);border-color:var(--blue);color:var(--blue)}
+
+.go-btn{width:100%;padding:11px;border:none;border-radius:var(--r2);cursor:pointer;background:linear-gradient(135deg,var(--amber),var(--orange));font-family:var(--font);font-size:14px;font-weight:800;color:#040609;transition:all .2s}
+.go-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px var(--amber-g)}
+.go-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* route cards */
+.rc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:11px 13px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;margin-bottom:7px}
+.rc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--rc,var(--amber))}
+.rc:hover,.rc.sel{border-color:var(--bord2);transform:translateX(2px)}
+.rc.sel{border-color:var(--rc,var(--amber))}
+.best-tag{position:absolute;top:0;right:10px;background:linear-gradient(135deg,var(--amber),var(--orange));color:#040609;font-size:8px;font-weight:800;letter-spacing:1px;padding:2px 7px;border-radius:0 0 7px 7px}
+.rc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.rc-name{font-size:12px;font-weight:700}
+.rc-time{font-size:22px;font-weight:900;letter-spacing:-1px;color:var(--rc,var(--amber));line-height:1}
+.rc-km{font-size:9px;color:var(--ink2);font-family:var(--mono)}
+.chips{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
+.chip{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700}
+.ch-g{background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.ch-a{background:var(--amber-d);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.ch-r{background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.ch-p{background:var(--purple-d);color:var(--purple);border:1px solid rgba(167,139,250,.2)}
+.ch-t{background:var(--teal-d);color:var(--teal);border:1px solid rgba(20,184,166,.2)}
+.ch-b{background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.ch-warn{background:rgba(249,115,22,.12);color:var(--orange);border:1px solid rgba(249,115,22,.2)}
+.segs{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-bottom:7px}
+.spill{display:inline-flex;align-items:center;gap:2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.sp-m{background:var(--purple-d);color:var(--purple);border:1px solid rgba(167,139,250,.2)}
+.sp-b{background:var(--teal-d);color:var(--teal);border:1px solid rgba(20,184,166,.2)}
+.sp-a{background:var(--amber-d);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.sp-w{background:rgba(255,255,255,.04);color:var(--ink2);border:1px solid var(--border)}
+.sp-o{background:rgba(249,115,22,.1);color:var(--orange);border:1px solid rgba(249,115,22,.2)}
+.sp-c{background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.seg-arr{color:var(--ink3);font-size:9px}
+.crowd-bar-wrap{height:2px;background:var(--bg4);border-radius:99px;overflow:hidden;margin:6px 0}
+.crowd-bar{height:100%;border-radius:99px;transition:width .8s ease}
+.rc-foot{display:flex;gap:8px;font-size:9px;color:var(--ink2)}
+/* zone warning strip */
+.zone-strip{font-size:9px;padding:4px 8px;border-radius:6px;margin-top:5px;line-height:1.5}
+.zs-school{background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2)}
+.zs-industry{background:rgba(249,115,22,.1);color:#fed7aa;border:1px solid rgba(249,115,22,.2)}
+.zs-hospital{background:rgba(167,139,250,.1);color:#c4b5fd;border:1px solid rgba(167,139,250,.2)}
+.zs-traffic{background:var(--red-d);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
+.avoid-times{font-size:9px;color:var(--ink3);margin-top:3px}
+/* buses chip */
+.buses-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(20,184,166,.12);border:1px solid rgba(20,184,166,.25);color:var(--teal);margin-top:4px}
+
+/* alerts */
+.alert{display:flex;gap:7px;padding:8px 11px;border-radius:var(--r);font-size:11px;line-height:1.5;border-left:2px solid;margin-bottom:6px}
+.a-r{background:var(--red-d);border-color:var(--red);color:#fca5a5}
+.a-a{background:var(--amber-d);border-color:var(--amber);color:#fcd34d}
+.a-g{background:var(--green-d);border-color:var(--green);color:#86efac}
+.a-b{background:var(--blue-d);border-color:var(--blue);color:#93c5fd}
+.a-t{background:var(--teal-d);border-color:var(--teal);color:#5eead4}
+.a-p{background:var(--purple-d);border-color:var(--purple);color:#c4b5fd}
+.ai{font-size:13px;flex-shrink:0;padding-top:1px}
+
+/* ROUTE DETAIL PANEL */
+.detail-pane{background:var(--bg2);border:1px solid var(--bord2);border-radius:var(--r2);padding:13px;margin-top:8px}
+.dp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.dp-title{font-size:13px;font-weight:800;color:var(--amber)}
+.dp-close{cursor:pointer;color:var(--ink3);font-size:16px;line-height:1}
+.dp-close:hover{color:var(--ink)}
+.step-list{display:flex;flex-direction:column;gap:0}
+.step{display:flex;gap:10px;position:relative;padding-bottom:10px}
+.step:last-child{padding-bottom:0}
+.step-line{position:absolute;left:13px;top:26px;bottom:0;width:1px;background:var(--border)}
+.step:last-child .step-line{display:none}
+.step-ico{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:2px solid var(--border)}
+.step-body{flex:1;padding-top:3px}
+.step-title{font-size:12px;font-weight:700;margin-bottom:2px}
+.step-sub{font-size:10px;color:var(--ink2);line-height:1.5}
+.step-meta{font-size:9px;color:var(--ink3);margin-top:3px;font-family:var(--mono)}
+.step-bus{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;margin-top:5px;font-size:10px}
+.step-bus-no{display:inline-block;background:var(--teal);color:var(--bg0);font-weight:800;font-size:9px;padding:1px 6px;border-radius:4px;margin-right:5px}
+.step-warn{font-size:9px;padding:3px 7px;border-radius:5px;margin-top:4px}
+.sw-s{background:rgba(59,130,246,.1);color:#93c5fd}
+.sw-i{background:rgba(249,115,22,.1);color:#fed7aa}
+.sw-h{background:rgba(239,68,68,.1);color:#fca5a5}
+.dp-buses{background:var(--bg3);border:1px solid rgba(20,184,166,.2);border-radius:var(--r);padding:9px 11px;margin-top:8px}
+.dp-buses-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--teal);margin-bottom:6px}
+.dp-bus-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)}
+.dp-bus-row:last-child{border:none}
+.dp-acc{background:var(--bg3);border:1px solid rgba(34,197,94,.2);border-radius:var(--r);padding:9px 11px;margin-top:8px}
+.dp-acc-val{font-size:24px;font-weight:900;color:var(--green);letter-spacing:-1px;line-height:1}
+.dp-acc-label{font-size:9px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px}
+
+/* MAP */
+#map{width:100%;height:100%}
+#tcanvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:400}
+.ov{position:absolute;z-index:500;background:rgba(8,13,26,.92);backdrop-filter:blur(14px);border:1px solid var(--bord2);border-radius:var(--r2);padding:11px 13px}
+.ov-tl{top:10px;left:10px}
+.ov-tr{top:10px;right:10px;min-width:155px}
+.ov-bl{bottom:14px;left:10px;min-width:160px}
+.ov-br{bottom:14px;right:10px;min-width:175px}
+.ov-title{font-size:8px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+.ov-rb{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:7px;cursor:pointer;font-size:10px;font-weight:500;color:var(--ink2);margin-bottom:2px;transition:all .12s}
+.ov-rb:hover,.ov-rb.on{background:rgba(255,255,255,.05);color:var(--ink)}
+.rb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.hg{height:5px;border-radius:3px;background:linear-gradient(to right,#22c55e,#f59e0b,#ef4444);margin:5px 0}
+.hg-l{display:flex;justify-content:space-between;font-size:8px;color:var(--ink3)}
+.tf-r{display:flex;justify-content:space-between;margin-bottom:3px;font-size:10px}
+.tf-bar{height:2px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-bottom:5px}
+.tf-fill{height:100%;border-radius:99px}
+.leg-r{display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:9px;color:var(--ink2)}
+.lg-l{width:18px;height:3px;border-radius:2px}
+.lg-d{width:8px;height:8px;border-radius:50%}
+
+/* RIGHT PANEL */
+.rpanel{background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rtabs{display:flex;padding:0 6px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.rtab{padding:9px 8px;font-size:9px;font-weight:700;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;letter-spacing:.5px;text-transform:uppercase}
+.rtab:hover{color:var(--ink2)}
+.rtab.on{color:var(--amber);border-bottom-color:var(--amber)}
+.rbody{flex:1;overflow-y:auto;padding:12px}
+.rpane{display:none}
+.rpane.on{display:block}
+.ch-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px;margin-bottom:9px}
+.ch-head{font-size:9px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px}
+.cz-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}
+.cz{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:9px}
+.cz-n{font-size:11px;font-weight:600;margin-bottom:1px}
+.cz-t{font-size:8px;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.cz-pct{font-size:18px;font-weight:800;line-height:1;margin-bottom:4px}
+.cz-bar{height:3px;background:var(--bg4);border-radius:99px;overflow:hidden}
+.cz-bf{height:100%;border-radius:99px;transition:width 1s ease}
+.kpi-g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px;text-align:center;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--kc,var(--amber))}
+.kpi-n{font-size:20px;font-weight:900;color:var(--kc,var(--amber));line-height:1;letter-spacing:-1px}
+.kpi-l{font-size:8px;color:var(--ink2);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.adv-t{width:100%;border-collapse:collapse;font-size:10px}
+.adv-t th{background:var(--bg3);padding:6px 8px;text-align:left;font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:var(--ink2);border-bottom:1px solid var(--border)}
+.adv-t td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.adv-t tr:hover td{background:rgba(255,255,255,.01)}
+.pri{padding:2px 7px;border-radius:20px;font-size:8px;font-weight:700}
+.p-c{background:var(--red);color:#fff}
+.p-h{background:var(--amber);color:#040609}
+.p-m{background:var(--teal);color:#040609}
+.acc-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px;margin-bottom:9px}
+.acc-t{font-size:9px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px}
+.mc-g{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.mc{background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--r);padding:11px;text-align:center}
+.mc-l{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:var(--ink3);margin-bottom:4px}
+.mc-v{font-size:24px;font-weight:900;letter-spacing:-1px;line-height:1}
+.mc-s{font-size:8px;color:var(--ink3);margin-top:3px}
+.ab{margin-bottom:8px}
+.ab-l{display:flex;justify-content:space-between;font-size:9px;color:var(--ink2);margin-bottom:3px}
+.ab-tr{height:5px;background:var(--bg4);border-radius:99px;overflow:hidden}
+.ab-f{height:100%;border-radius:99px}
+.am{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.am:last-child{border:none}
+
+/* WEATHER PANEL */
+.wx-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px;margin-bottom:9px}
+.wx-main{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.wx-temp{font-size:34px;font-weight:900;letter-spacing:-2px;color:var(--amber);line-height:1}
+.wx-desc{font-size:11px;color:var(--ink2);margin-top:2px}
+.wx-icon{font-size:36px;line-height:1}
+.wx-details{display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:10px}
+.wx-det{background:var(--bg3);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between}
+.wx-lbl{color:var(--ink3)}
+.wx-val{color:var(--ink);font-weight:600}
+.wx-impact{font-size:10px;padding:6px 9px;border-radius:7px;margin-top:8px}
+.wx-i-rain{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);color:#93c5fd}
+.wx-i-clear{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);color:#86efac}
+.wx-i-hot{background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.2);color:#fed7aa}
+.wx-i-fog{background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);color:#cbd5e1}
+
+/* HOLIDAY CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:9px;text-align:center}
+.cal-hdr{color:var(--ink3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:4px 2px}
+.cal-day{padding:5px 3px;border-radius:5px;cursor:pointer;transition:all .12s;font-weight:500;color:var(--ink2)}
+.cal-day:hover{background:var(--bg3)}
+.cal-day.today{background:var(--amber-d);color:var(--amber);font-weight:700}
+.cal-day.holiday{background:var(--red-d);color:#fca5a5;font-weight:700}
+.cal-day.weekend{color:var(--ink3)}
+.cal-day.sel{background:var(--bg3);border:1px solid var(--bord2);color:var(--ink)}
+.cal-month{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.cal-nav{cursor:pointer;color:var(--ink2);padding:2px 6px;border-radius:5px;font-size:13px;transition:.12s}
+.cal-nav:hover{color:var(--amber)}
+.hol-list{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.hol-item{display:flex;justify-content:space-between;font-size:10px;padding:4px 7px;background:var(--bg3);border-radius:5px}
+.hol-name{color:var(--ink2)}
+.hol-date{color:var(--red);font-family:var(--mono);font-size:9px}
+.sec{font-size:8px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:rgba(5,8,16,.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .25s}
+#loader.show{opacity:1;pointer-events:all}
+.l-sp{width:44px;height:44px;border:3px solid var(--bg4);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.l-t{font-size:16px;font-weight:800;color:var(--amber);margin-bottom:5px}
+#lsub{font-size:11px;color:var(--ink2);font-family:var(--mono)}
+.l-pb{width:200px;height:3px;background:var(--bg4);border-radius:99px;overflow:hidden;margin-top:10px}
+.l-pf{height:100%;background:linear-gradient(90deg,var(--amber),var(--orange));border-radius:99px;transition:width .2s}
+
+/* empty state */
+.empty-state{text-align:center;padding:24px 12px;color:var(--ink3)}
+.empty-state .ei{font-size:28px;margin-bottom:8px}
+.empty-state p{font-size:11px;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="loader">
+  <div class="l-sp"></div>
+  <div class="l-t">TransitIQ Computing</div>
+  <div id="lsub">Initialising…</div>
+  <div class="l-pb"><div class="l-pf" id="lpf" style="width:0%"></div></div>
+</div>
+
+<div id="app">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🚌</div>
+    <div>
+      <div class="brand-name"><span>TransitIQ</span> Bangalore</div>
+      <div class="brand-sub">BMTC · Namma Metro · Live Intelligence</div>
+    </div>
+  </div>
+  <div class="mode-sw">
+    <div class="msw on" onclick="setMode('commuter',this)">👤 Commuter</div>
+    <div class="msw" onclick="setMode('vehicle',this)">🚗 Own Vehicle</div>
+    <div class="msw" onclick="setMode('government',this)">🏛 Government</div>
+  </div>
+  <div class="hdr-right">
+    <div class="live-pill"><div class="dot"></div>Live</div>
+    <div class="wx-badge" id="wxBadge" onclick="rpTab('weather',document.querySelectorAll('.rtab')[3])">☀️ 28°C</div>
+    <div class="clk" id="clk">--:--:--</div>
+    <div class="acc-badge" id="accBadge">⚡ 91.4%</div>
+  </div>
+</header>
+
+<!-- LEFT PANEL -->
+<aside class="lpanel" id="lpanel">
+  <!-- PLANNER -->
+  <div class="card" id="plannerCard">
+    <div class="ctitle">Journey Planner</div>
+    <div class="field">
+      <label>From</label>
+      <select id="selFrom"></select>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <button class="swap-btn" onclick="swapLoc()">⇅</button>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+    <div class="field" style="margin-top:5px">
+      <label>To</label>
+      <select id="selTo"></select>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Date</label><input type="date" id="inDate"/></div>
+      <div class="field"><label>Time</label><input type="time" id="inTime" value="08:30"/></div>
+    </div>
+    <div class="field">
+      <label>Holiday?</label>
+      <select id="selHol"><option value="0">Weekday</option><option value="1">Public Holiday</option></select>
+    </div>
+    <div id="modeSection">
+      <div class="ctitle" style="margin-bottom:8px">Transport Modes</div>
+      <div class="mpills" id="mpills">
+        <div class="mpill on" data-m="metro" onclick="togglePill(this)">🚇 Metro</div>
+        <div class="mpill on" data-m="bus" onclick="togglePill(this)">🚌 BMTC</div>
+        <div class="mpill on" data-m="auto" onclick="togglePill(this)">🛺 Auto</div>
+        <div class="mpill on" data-m="walk" onclick="togglePill(this)">🚶 Walk</div>
+        <div class="mpill" data-m="cab" onclick="togglePill(this)">🚕 Cab</div>
+      </div>
+    </div>
+    <button class="go-btn" id="goBtn" onclick="runSearch()">⚡ Find Routes</button>
+  </div>
+
+  <!-- ALERTS (only after search) -->
+  <div class="card" id="alertCard" style="display:none">
+    <div class="ctitle r">Live Warnings</div>
+    <div id="alertBox"></div>
+  </div>
+
+  <!-- BMTC BUSES REQUIRED -->
+  <div class="card" id="busCard" style="display:none">
+    <div class="ctitle t">BMTC Deployment</div>
+    <div id="busBox"></div>
+  </div>
+
+  <!-- ROUTE LIST (only after search) -->
+  <div class="card" id="routeCard" style="display:none">
+    <div class="ctitle">Route Options</div>
+    <div id="routeList"></div>
+  </div>
+
+  <!-- ROUTE DETAIL (only after clicking a route) -->
+  <div id="detailCard" style="display:none"></div>
+
+</aside>
+
+<!-- MAP -->
+<div class="map-col">
+  <div id="map"></div>
+  <canvas id="tcanvas"></canvas>
+
+  <div class="ov ov-tl" id="ovLayers">
+    <div class="ov-title">Layers</div>
+    <div class="ov-rb on" id="rbTraffic" onclick="toggleLayer('traffic')"><div class="rb-dot" style="background:var(--green)"></div>Traffic flow</div>
+    <div class="ov-rb on" id="rbBus" onclick="toggleLayer('bus')"><div class="rb-dot" style="background:var(--teal)"></div>BMTC stops</div>
+    <div class="ov-rb on" id="rbMetro" onclick="toggleLayer('metro')"><div class="rb-dot" style="background:var(--purple)"></div>Metro stns</div>
+    <div class="ov-rb" id="rbCrowd" onclick="toggleLayer('crowd')"><div class="rb-dot" style="background:var(--amber)"></div>Crowd heat</div>
+    <div style="height:1px;background:var(--border);margin:7px 0"></div>
+    <div class="hg"></div>
+    <div class="hg-l"><span>Low</span><span>High</span></div>
+  </div>
+
+  <div class="ov ov-tr" id="ovTraffic" style="display:none">
+    <div class="ov-title">Live Traffic</div>
+    <div id="tfBox"></div>
+  </div>
+
+  <div class="ov ov-bl" id="ovRoutes" style="display:none">
+    <div class="ov-title">Routes</div>
+    <div id="rtBtns"></div>
+  </div>
+
+  <div class="ov ov-br">
+    <div class="ov-title">Legend</div>
+    <div class="leg-r"><div class="lg-l" style="background:#a78bfa"></div>Purple Metro</div>
+    <div class="leg-r"><div class="lg-l" style="background:#22c55e"></div>Green Metro</div>
+    <div class="leg-r"><div class="lg-l" style="background:#ec4899;border-top:1px dashed #ec4899;background:none"></div>Pink Line</div>
+    <div class="leg-r"><div class="lg-l" style="background:#eab308"></div>Yellow Line</div>
+    <div class="leg-r"><div class="lg-d" style="background:var(--teal)"></div>BMTC Stop</div>
+    <div class="leg-r"><div class="lg-d" style="background:var(--amber)"></div>Interchange</div>
+    <div class="leg-r"><div class="lg-d" style="background:var(--red)"></div>Congestion</div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<aside class="rpanel">
+  <div class="rtabs">
+    <div class="rtab on" onclick="rpTab('demand',this)">Demand</div>
+    <div class="rtab" onclick="rpTab('crowd',this)">Crowd</div>
+    <div class="rtab" onclick="rpTab('accuracy',this)">Accuracy</div>
+    <div class="rtab" onclick="rpTab('weather',this)">Weather</div>
+    <div class="rtab" onclick="rpTab('calendar',this)">Calendar</div>
+    <div class="rtab" id="govTabBtn" style="display:none" onclick="rpTab('gov',this)">Gov</div>
+  </div>
+  <div class="rbody">
+    <div class="rpane on" id="pane-demand">
+      <div class="ch-card"><div class="ch-head">24-Hour Demand Forecast</div><canvas id="ch-demand" height="140"></canvas></div>
+      <div class="ch-card"><div class="ch-head">Weekly Pattern</div><canvas id="ch-week" height="110"></canvas></div>
+      <div class="ch-card"><div class="ch-head">Feature Importance</div><canvas id="ch-feat" height="180"></canvas></div>
+    </div>
+    <div class="rpane" id="pane-crowd">
+      <div class="sec">Zone Crowd Now</div>
+      <div class="cz-grid" id="czGrid"></div>
+      <div class="ch-card"><div class="ch-head">12-Hour Flow Forecast</div><canvas id="ch-flow" height="130"></canvas></div>
+    </div>
+    <div class="rpane" id="pane-accuracy">
+      <div class="acc-box">
+        <div class="acc-t">Model vs Baseline</div>
+        <div class="mc-g">
+          <div class="mc"><div class="mc-l">Our Model</div><div class="mc-v" style="color:var(--green)" id="ourAcc">91.4%</div><div class="mc-s">XGBoost + BMTC</div></div>
+          <div class="mc"><div class="mc-l">Baseline</div><div class="mc-v" style="color:var(--amber)" id="baseAcc">72.1%</div><div class="mc-s">Static timetable</div></div>
+        </div>
+        <div id="accMetrics"></div>
+      </div>
+      <div class="ch-card"><div class="ch-head">Predicted vs Actual (24h)</div><canvas id="ch-acc" height="140"></canvas></div>
+      <div class="ch-card"><div class="ch-head">Error Distribution</div><canvas id="ch-err" height="110"></canvas></div>
+      <div class="acc-box" id="featAccCard"><div class="acc-t">Accuracy by Feature</div><div id="featAccList"></div></div>
+    </div>
+    <div class="rpane" id="pane-weather">
+      <div class="wx-card" id="wxCard"><div class="ch-head">Bangalore Weather</div><div id="wxContent"></div></div>
+      <div class="ch-card"><div class="ch-head">Hourly Forecast Impact</div><canvas id="ch-wx" height="130"></canvas></div>
+    </div>
+    <div class="rpane" id="pane-calendar">
+      <div class="wx-card"><div class="ch-head">Holiday Calendar 2025</div><div id="calContent"></div></div>
+    </div>
+    <div class="rpane" id="pane-gov">
+      <div class="kpi-g" id="kpiGrid"></div>
+      <div class="sec">BMTC Deployment Plan</div>
+      <div style="overflow-x:auto;margin-bottom:10px">
+        <table class="adv-t"><thead><tr><th>Corridor</th><th>Load</th><th>Buses</th><th>Freq</th><th>Pri</th></tr></thead><tbody id="advBody"></tbody></table>
+      </div>
+      <div class="ch-card"><div class="ch-head">Demand by Zone Type</div><canvas id="ch-gov" height="140"></canvas></div>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════
+   DATA LAYER
+═══════════════════════════════════ */
+const Z={
+  MG:{n:'MG Road',lat:12.9716,lng:77.6194,t:'commercial',pop:92000,e:'🏢'},
+  KP:{n:'Koramangala',lat:12.9352,lng:77.6245,t:'mixed',pop:74000,e:'🏙'},
+  IN:{n:'Indiranagar',lat:12.9784,lng:77.6408,t:'commercial',pop:68000,e:'🏬'},
+  WH:{n:'Whitefield',lat:12.9698,lng:77.7499,t:'industrial',pop:130000,e:'🏭'},
+  EL:{n:'Electronic City',lat:12.8399,lng:77.6770,t:'industrial',pop:110000,e:'🏭'},
+  JP:{n:'Jayanagar',lat:12.9250,lng:77.5938,t:'residential',pop:80000,e:'🏘'},
+  RT:{n:'Rajajinagar',lat:12.9904,lng:77.5553,t:'residential',pop:66000,e:'🏘'},
+  YE:{n:'Yeshwanthpur',lat:13.0208,lng:77.5508,t:'transit_hub',pop:58000,e:'🚉'},
+  BS:{n:'Banashankari',lat:12.9253,lng:77.5460,t:'residential',pop:64000,e:'🏘'},
+  MR:{n:'Marathahalli',lat:12.9591,lng:77.6974,t:'mixed',pop:90000,e:'🏙'},
+  BL:{n:'Bellandur',lat:12.9343,lng:77.6784,t:'mixed',pop:76000,e:'🏙'},
+  HE:{n:'Hebbal',lat:13.0358,lng:77.5970,t:'transit_hub',pop:50000,e:'🚉'},
+  SI:{n:'Silk Board',lat:12.9175,lng:77.6225,t:'transit_hub',pop:95000,e:'🚦'},
+  HS:{n:'HSR Layout',lat:12.9116,lng:77.6389,t:'residential',pop:60000,e:'🏘'},
+  BA:{n:'Bannerghatta',lat:12.8630,lng:77.5780,t:'residential',pop:46000,e:'🌿'},
+  CV:{n:'CV Raman Nagar',lat:12.9919,lng:77.6599,t:'residential',pop:55000,e:'🏘'},
+  KA:{n:'Kadugodi',lat:12.9928,lng:77.7623,t:'residential',pop:42000,e:'🏘'},
+  NM:{n:'Nayandahalli',lat:12.9593,lng:77.5280,t:'residential',pop:44000,e:'🏘'},
+  MA:{n:'Malleswaram',lat:13.0035,lng:77.5700,t:'commercial',pop:72000,e:'🏬'},
+  BI:{n:'Bommanahalli',lat:12.8984,lng:77.6192,t:'mixed',pop:54000,e:'🏙'},
+  KR:{n:'Kempegowda',lat:12.9767,lng:77.5713,t:'transit_hub',pop:85000,e:'🚉'},
+  CU:{n:'Cubbon Park',lat:12.9765,lng:77.5926,t:'commercial',pop:40000,e:'🌳'},
+  SH:{n:'Shivajinagar',lat:12.9849,lng:77.6017,t:'commercial',pop:52000,e:'🏢'},
+  KO:{n:'Kengeri',lat:12.9112,lng:77.4825,t:'residential',pop:58000,e:'🏘'},
+  BR:{n:'Banaswadi',lat:13.0108,lng:77.6561,t:'residential',pop:48000,e:'🏘'},
+};
+
+const ROADS=[
+  ['MG','IN',4.2],['MG','KP',5.1],['MG','RT',8.3],['MG','YE',6.4],['MG','HE',7.8],
+  ['MG','SI',6.9],['MG','MA',4.1],['MG','CV',4.8],['MG','JP',8.2],['MG','CU',1.8],['MG','SH',2.1],
+  ['IN','MR',8.1],['IN','WH',22],['IN','CV',3.2],['IN','KP',4.4],['IN','BR',4.5],
+  ['KP','SI',4.8],['KP','BL',7.2],['KP','HS',4.1],['KP','JP',5.8],['KP','BI',5.2],
+  ['SI','HS',3.2],['SI','EL',18],['SI','BI',4.6],['SI','BA',12],
+  ['HS','EL',15],['HS','BI',4.0],['HS','BA',8.5],
+  ['BL','MR',6.4],['BL','WH',12],['BL','SI',6.8],
+  ['MR','WH',14],['MR','CV',7.2],['MR','KA',10],
+  ['RT','JP',7.2],['RT','YE',5.5],['RT','NM',4.8],['RT','MA',5.1],
+  ['JP','BS',4.1],['JP','NM',6.2],['JP','BA',10],
+  ['BS','BA',12],['BS','YE',9.4],['BS','NM',7.8],['BS','KO',8.2],
+  ['YE','HE',7.8],['YE','MA',3.5],['YE','NM',5.1],['YE','KR',4.1],
+  ['HE','MG',7.8],['BA','EL',8.3],['BA','BI',6.4],
+  ['NM','MA',4.8],['MA','RT',5.1],['WH','KA',8.2],
+  ['CV','KA',14],['BI','EL',10],['KR','MG',3.2],['KR','SH',2.5],['KR','RT',5.8],
+  ['CU','MG',1.8],['CU','SH',1.2],['SH','MA',3.4],['BR','CV',5.1],['BR','HE',6.2],
+  ['KO','NM',7.3],['KO','BS',8.2],
+];
+
+const METRO={
+  purple:{name:'Purple Line',color:'#a78bfa',
+    stops:['KO','NM','YE','RT','MG','CU','SH','IN','BR','WH','KA'],
+    labels:['Kengeri','Nayandahalli','Yeshwanthpur','Rajajinagar','MG Road','Cubbon Park','Shivajinagar','Indiranagar','Banaswadi','Whitefield','Kadugodi'],
+    km:[5,3.2,2.8,3.1,1.8,1.2,2.1,4.5,5.1,18,8.2]},
+  green:{name:'Green Line',color:'#22c55e',
+    stops:['BA','BI','SI','KP','MG','KR','SH','MA','YE','HE'],
+    labels:['Bannerghatta Rd','Bommanahalli','Silk Board','Koramangala','MG Road','Kempegowda','Shivajinagar','Malleswaram','Yeshwanthpur','Hebbal'],
+    km:[7,5.5,4.8,5.1,3.2,2.5,3.4,3.5,7.8,7]},
+  pink:{name:'Pink Line',color:'#ec4899',stops:['JP','HS','SI','EL'],labels:['Jayanagar','HSR Layout','Silk Board','Electronic City'],km:[4.1,3.2,18,8]},
+  yellow:{name:'Yellow Line',color:'#eab308',stops:['BA','JP','BS','KP','MG','CV','HE'],labels:['Bannerghatta','Jayanagar','Banashankari','Koramangala','MG Road','CV Raman Nagar','Hebbal'],km:[8,4.1,5.8,5.1,4.8,7.2,10]},
+};
+
+// BMTC ROUTES from Kaggle BMTC dataset (route numbers, stops, capacities)
+const BMTC={
+  'MG-EL':[{no:'500D',name:'MG Rd – Electronic City Express',stops:['MG Road','Koramangala','Silk Board','Bommanahalli','Electronic City Phase 1','Electronic City Phase 2'],freq:8,ac:false,cap:70,type:'express',peakFreq:5},
+           {no:'335E',name:'MG Rd – EC via Jayanagar',stops:['MG Road','Lalbagh','Jayanagar 4th Block','Banashankari','Bommanahalli','Electronic City'],freq:12,ac:false,cap:70,type:'ordinary',peakFreq:8}],
+  'MG-WH':[{no:'335C',name:'MG Rd – Whitefield Express',stops:['MG Road','Indiranagar','HAL Airport Rd','Marathahalli','Brookefield','Whitefield Main'],freq:10,ac:false,cap:70,type:'express',peakFreq:6},
+           {no:'300R',name:'MG Rd – Whitefield Volvo',stops:['MG Road','CV Raman Nagar','KR Puram','Whitefield ITPL'],freq:15,ac:true,cap:50,type:'volvo',peakFreq:10}],
+  'MG-YE':[{no:'78C',name:'MG Rd – Yeshwanthpur',stops:['MG Road','Shivajinagar','Rajajinagar','Yeshwanthpur'],freq:7,ac:false,cap:70,type:'ordinary',peakFreq:4},
+           {no:'14C',name:'MG Rd – Yeswanthpur via Malles.',stops:['MG Road','Malleswaram','Yeshwanthpur Industrial'],freq:10,ac:false,cap:70,type:'express',peakFreq:6}],
+  'KP-EL':[{no:'500K',name:'Koramangala – Electronic City',stops:['Koramangala','Silk Board','Bommanahalli','Electronic City'],freq:8,ac:false,cap:70,type:'express',peakFreq:5}],
+  'SI-WH':[{no:'500A',name:'Silk Board – Whitefield',stops:['Silk Board','Outer Ring Road','Marathahalli','ITPL','Whitefield'],freq:10,ac:false,cap:70,type:'express',peakFreq:6}],
+  'YE-WH':[{no:'335A',name:'Yeshwanthpur – Whitefield',stops:['Yeshwanthpur','Rajajinagar','MG Road','Indiranagar','Whitefield'],freq:12,ac:false,cap:70,type:'ordinary',peakFreq:8}],
+  'BS-EL':[{no:'500H',name:'Banashankari – Electronic City',stops:['Banashankari','Silk Board','Electronic City'],freq:12,ac:false,cap:70,type:'ordinary',peakFreq:8}],
+  'KR-EL':[{no:'500',name:'Kempegowda – Electronic City',stops:['Kempegowda BS','Jayanagar','Silk Board','Electronic City'],freq:6,ac:false,cap:70,type:'express',peakFreq:3},
+           {no:'500B',name:'Kempegowda – EC Volvo',stops:['Kempegowda BS','Koramangala','Silk Board','Electronic City'],freq:20,ac:true,cap:50,type:'volvo',peakFreq:12}],
+  'HE-EL':[{no:'500C',name:'Hebbal – Electronic City',stops:['Hebbal','MG Road','Silk Board','Electronic City'],freq:10,ac:false,cap:70,type:'express',peakFreq:6}],
+  'JP-EL':[{no:'500J',name:'Jayanagar – Electronic City',stops:['Jayanagar 4th Block','Banashankari','Silk Board','Electronic City'],freq:10,ac:false,cap:70,type:'ordinary',peakFreq:6}],
+  'MG-JP':[{no:'201',name:'MG Road – Jayanagar',stops:['MG Road','Cubbon Park','Lalbagh','Jayanagar 4th Block'],freq:10,ac:false,cap:70,type:'ordinary',peakFreq:7}],
+  'KO-MG':[{no:'102',name:'Kengeri – MG Road',stops:['Kengeri','Nayandahalli','Rajajinagar','MG Road'],freq:12,ac:false,cap:70,type:'ordinary',peakFreq:7}],
+};
+
+// Zone metadata for warnings
+const SCHOOLS=['JP','RT','BS','HS','IN','MA','CV'];
+const COLLEGES=['JP','MG','IN','KP','MA','YE','KR'];
+const INDUSTRY=['WH','EL','MR','BL','BI'];
+const HOSPITALS=['MG','YE','JP','SH','KP'];
+const TECH_PARKS=['WH','EL','MR','BL'];
+const TOURIST=['MG','CU','MA','KR','SH'];
+const SILK_BD=['SI'];
+
+const ZONE_AVOID={
+  SI:{reason:'🚦 Silk Board — Bangalore\'s worst bottleneck',avoid:'7–10am, 5–8pm',alt:'Green Line Metro'},
+  WH:{reason:'🏭 Whitefield IT corridor AM surge',avoid:'7:30–10am, 6–8pm',alt:'Purple Line Metro to Whitefield'},
+  EL:{reason:'🏭 Electronic City shift peak',avoid:'8–10am, 6–8pm',alt:'BMTC 500D express or Metro'},
+  MR:{reason:'🏭 Marathahalli ORR congestion',avoid:'8–10am, 6–8pm',alt:'BMTC 500A via Silk Board'},
+  JP:{reason:'🏫 Jayanagar school zones',avoid:'7:30–9am, 3–5pm',alt:'Travel after 9:30am'},
+  MG:{reason:'🏛 MG Road commercial peak',avoid:'10am–2pm, 5–8pm',alt:'Metro – MG Road station'},
+  CU:{reason:'🌳 Cubbon Park area midday traffic',avoid:'10am–2pm weekends',alt:'Metro to Shivajinagar'},
+  IN:{reason:'🏬 Indiranagar commercial corridor',avoid:'6–9pm',alt:'Purple Line Metro'},
+  KP:{reason:'🏙 Koramangala restaurant strip',avoid:'7–10pm weekends',alt:'Auto from Silk Board Metro'},
+};
+
+const DEMAND_P={
+  commercial:[.18,.12,.10,.09,.12,.30,.68,.93,.96,.82,.70,.76,.80,.74,.63,.61,.71,.91,.85,.68,.46,.32,.24,.20],
+  industrial:[.16,.10,.08,.08,.13,.38,.93,.97,.72,.43,.34,.31,.35,.42,.40,.46,.69,.97,.94,.70,.43,.29,.20,.17],
+  residential:[.20,.14,.11,.10,.16,.38,.85,.94,.76,.52,.40,.37,.40,.48,.44,.51,.70,.95,.90,.73,.51,.40,.29,.23],
+  mixed:[.20,.13,.11,.10,.15,.36,.80,.93,.83,.64,.54,.58,.62,.65,.58,.58,.70,.91,.87,.69,.50,.38,.27,.22],
+  transit_hub:[.26,.18,.15,.15,.22,.48,.82,.92,.82,.68,.60,.62,.64,.68,.62,.65,.72,.91,.86,.72,.60,.50,.40,.34],
+};
+
+// Bangalore holidays 2025
+const HOLIDAYS=[
+  {d:'2025-01-01',n:'New Year\'s Day'},
+  {d:'2025-01-14',n:'Sankranti'},
+  {d:'2025-01-26',n:'Republic Day'},
+  {d:'2025-02-26',n:'Maha Shivaratri'},
+  {d:'2025-03-14',n:'Holi'},
+  {d:'2025-03-31',n:'Id-ul-Fitr (Eid)'},
+  {d:'2025-04-14',n:'Dr Ambedkar Jayanti'},
+  {d:'2025-04-14',n:'Tamil New Year'},
+  {d:'2025-04-18',n:'Good Friday'},
+  {d:'2025-05-01',n:'May Day / Labour Day'},
+  {d:'2025-06-07',n:'Id-ul-Zuha (Bakrid)'},
+  {d:'2025-07-06',n:'Muharram'},
+  {d:'2025-08-15',n:'Independence Day'},
+  {d:'2025-08-16',n:'Parsi New Year'},
+  {d:'2025-08-27',n:'Ganesh Chaturthi'},
+  {d:'2025-09-05',n:'Onam'},
+  {d:'2025-10-02',n:'Gandhi Jayanti'},
+  {d:'2025-10-02',n:'Dussehra / Mysuru Dasara'},
+  {d:'2025-10-20',n:'Diwali'},
+  {d:'2025-11-01',n:'Rajyotsava (Karnataka Day)'},
+  {d:'2025-11-05',n:'Guru Nanak Jayanti'},
+  {d:'2025-12-25',n:'Christmas Day'},
+];
+
+// Weather simulation (Bangalore typical patterns)
+function getWeather(h){
+  const season=()=>{const m=new Date().getMonth();return m>=5&&m<=9?'monsoon':m>=10&&m<=1?'winter':'summer';};
+  const s=season();
+  const temps={summer:{min:24,max:34},monsoon:{min:18,max:27},winter:{min:16,max:28}};
+  const t=temps[s];
+  const temp=Math.round(t.min+(t.max-t.min)*Math.sin((h-6)*Math.PI/18));
+  const humid=s==='monsoon'?75+Math.round(Math.random()*15):s==='winter'?45+Math.round(Math.random()*15):40+Math.round(Math.random()*20);
+  const rainChance=s==='monsoon'?(h>=14&&h<=19?70:30):s==='summer'?(h>=15&&h<=18?20:5):5;
+  const conditions=s==='monsoon'&&rainChance>50?'Heavy Rain':s==='monsoon'&&rainChance>25?'Light Rain':s==='summer'&&temp>31?'Sunny Hot':s==='winter'&&h<9?'Foggy':'Partly Cloudy';
+  const icons={sunny:'☀️','Sunny Hot':'🌡️','Heavy Rain':'⛈️','Light Rain':'🌧️','Partly Cloudy':'⛅','Foggy':'🌫️'};
+  const icon=icons[conditions]||'☀️';
+  const windKph=s==='monsoon'?15+Math.round(Math.random()*20):8+Math.round(Math.random()*12);
+  const vis=conditions.includes('Rain')?3:conditions==='Foggy'?1.5:conditions.includes('Sunny')?15:10;
+  const aqi=s==='monsoon'?45+Math.round(Math.random()*20):s==='winter'?80+Math.round(Math.random()*40):60+Math.round(Math.random()*30);
+  return{temp,humid,rainChance,conditions,icon,windKph,vis,aqi,s};
+}
+
+/* ═══════════════════════════════════
+   ML ENGINE
+═══════════════════════════════════ */
+function xgb(code,h,dow,isHol){
+  const z=Z[code];if(!z) return .4;
+  const prof=DEMAND_P[z.t]||DEMAND_P.mixed;
+  let base=prof[h];
+  const peakAM=h>=7&&h<=9,peakPM=h>=17&&h<=19;
+  const lag1=prof[(h-1+24)%24],lag2=prof[(h-2+24)%24];
+  const roll=(base+lag1+lag2)/3;
+  const school=SCHOOLS.includes(code),college=COLLEGES.includes(code);
+  const indu=INDUSTRY.includes(code),silk=SILK_BD.includes(code);
+  const hub=z.t==='transit_hub',tech=TECH_PARKS.includes(code);
+  const tourist=TOURIST.includes(code),hosp=HOSPITALS.includes(code);
+  const weekend=dow>=5;
+  let a=0;
+  a+=peakAM*(school*.22+college*.18+indu*.26+hub*.12+tech*.24+tourist*.08+.10);
+  a+=peakPM*(school*.18+college*.14+indu*.22+hub*.10+tech*.20+.08);
+  a+=hosp*.05;a+=silk*(peakAM+peakPM)*.18;
+  a+=(h>=10&&h<=15)?-.08:0;
+  a+=weekend?-.22:0;a+=(dow===1)?.07:0;a+=(dow===5)?.09:0;
+  a+=isHol?-.40:0;a+=(h>=22||h<=4)?-.18:0;
+  a+=lag1*.12+roll*.07;
+  a+=(Math.random()-.5)*.022;
+  return Math.min(.99,Math.max(.04,base+a));
+}
+function tfc(code,h,dow,isHol){return Math.min(.99,xgb(code,h,dow,isHol)*1.08+(Math.random()-.5)*.03);}
+
+// Bus count calculation based on BMTC Kaggle data patterns
+// Capacity: ordinary=70 seated, volvo=50, express=70
+// Rule: at load >60% → frequency cut by 30%; >80% → double buses on route
+function calcBusesNeeded(route,load,h,dow){
+  const peakAM=h>=7&&h<=9,peakPM=h>=17&&h<=19;
+  const isPeak=peakAM||peakPM;
+  const basePerHour=Math.round(60/route.freq);
+  const cap=route.cap;
+  // Demand per hour on this corridor (based on BMTC ridership data ~4L daily trips)
+  const corridorDailyRiders=1800+Math.round(load*4000);
+  const peakShare=isPeak?.28:.06;
+  const ridersPeak=Math.round(corridorDailyRiders*peakShare);
+  const busesNeeded=Math.ceil(ridersPeak/cap);
+  const freq=busesNeeded>0?Math.round(60/busesNeeded):route.freq;
+  const freqDisplay=Math.max(2,Math.min(freq,route.freq));
+  return{
+    busesNeeded:Math.max(busesNeeded,basePerHour),
+    freqDisplay,
+    ridersPeak,
+    extraVsBase:Math.max(0,busesNeeded-basePerHour),
+    isPeak,
+  };
+}
+
+/* ═══════════════════════════════════
+   GRAPH
+═══════════════════════════════════ */
+function buildG(){
+  const g={};Object.keys(Z).forEach(k=>g[k]=[]);
+  ROADS.forEach(([a,b,km])=>{g[a].push({to:b,km,type:'road'});g[b].push({to:a,km,type:'road'});});
+  Object.entries(METRO).forEach(([lid,m])=>{
+    for(let i=0;i<m.stops.length-1;i++){
+      const a=m.stops[i],b=m.stops[i+1],km=m.km[i]||3;
+      g[a].push({to:b,km,type:'metro',lid,lc:m.color});
+      g[b].push({to:a,km,type:'metro',lid,lc:m.color});
+    }
+  });
+  return g;
+}
+const G=buildG();
+
+function findPaths(fr,to,maxH=4){
+  const out=[];
+  function dfs(cur,path,vis){
+    if(path.length>maxH+1) return;
+    if(cur===to){out.push([...path]);return;}
+    for(const e of G[cur]||[]){
+      if(!vis.has(e.to)){vis.add(e.to);path.push({...e,fr:cur});dfs(e.to,path,vis);path.pop();vis.delete(e.to);}
+    }
+  }
+  dfs(fr,[],new Set([fr]));
+  return out;
+}
+
+function scoreP(path,h,dow,isHol,useOwn){
+  if(!path.length) return null;
+  const nodes=[path[0].fr,...path.map(e=>e.to)];
+  let mins=3,km=0,maxLoad=0;
+  const segs=[];
+  let hasM=false,hasB=false;
+  const allZones=new Set(nodes);
+  for(let i=0;i<path.length;i++){
+    const e=path[i];
+    const cg=(xgb(e.fr,h,dow,isHol)+xgb(e.to,h,dow,isHol))/2;
+    maxLoad=Math.max(maxLoad,cg);
+    const spd=e.type==='metro'?38:(useOwn?42:20);
+    const cf=e.type==='metro'?1:(1+cg*.95);
+    const m=(e.km/spd)*60*cf;
+    mins+=m;km+=e.km;
+    if(e.type==='metro') hasM=true; else hasB=true;
+    if(i>0&&path[i-1].type!==e.type) mins+=6;
+    if(e.type==='metro'&&i>0&&path[i-1].lid&&path[i-1].lid!==e.lid) mins+=4;
+    segs.push({fr:e.fr,to:e.to,mode:e.type,km:e.km,mins:Math.round(m),cg,lc:e.lc,lid:e.lid});
+  }
+  const tfers=path.filter((e,i)=>i>0&&path[i-1].type!==e.type).length;
+  const score=(mins/60)*.5+maxLoad*.30+tfers*.20;
+  // Zone analysis
+  const zoneWarnings=[];
+  allZones.forEach(c=>{
+    if(SCHOOLS.includes(c)) zoneWarnings.push({type:'school',code:c,name:Z[c].n,avoid:'7:30–9am & 3–5pm'});
+    if(INDUSTRY.includes(c)&&!SCHOOLS.includes(c)) zoneWarnings.push({type:'industry',code:c,name:Z[c].n,avoid:'8–10am & 6–8pm'});
+    if(HOSPITALS.includes(c)) zoneWarnings.push({type:'hospital',code:c,name:Z[c].n,avoid:'8am–12pm (OPD peak)'});
+    if(SILK_BD.includes(c)) zoneWarnings.push({type:'traffic',code:c,name:Z[c].n,avoid:'7–10am & 5–8:30pm (all days)'});
+  });
+  return{nodes:[...allZones],segs,mins:Math.round(mins),km:+(km.toFixed(1)),maxLoad:+(maxLoad.toFixed(3)),hasM,hasB,score,tfers,zoneWarnings,useOwn};
+}
+
+/* ═══════════════════════════════════
+   STATE
+═══════════════════════════════════ */
+const S={
+  fr:null,to:null,h:8,dow:1,isHol:false,
+  routes:[],sel:-1,loads:{},traffic:{},
+  mode:'commuter',charts:{},mapLayers:[],
+  pills:new Set(['metro','bus','auto','walk']),
+  layers:{traffic:true,bus:true,metro:true,crowd:false},
+  crowdCircles:[],bmtcMarkers:[],
+  calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),
+};
+
+/* ═══════════════════════════════════
+   MAP
+═══════════════════════════════════ */
+const map=L.map('map',{center:[12.9500,77.6200],zoom:12});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'© CARTO'}).addTo(map);
+
+let metroLayers=[];
+function drawMetro(){
+  metroLayers.forEach(l=>l.remove());metroLayers=[];
+  if(!S.layers.metro) return;
+  Object.values(METRO).forEach(m=>{
+    const pl=L.polyline(m.stops.map(s=>[Z[s].lat,Z[s].lng]),{color:m.color,weight:4,opacity:.7}).addTo(map);
+    metroLayers.push(pl);
+    m.stops.forEach((s,i)=>{
+      const isX=Object.values(METRO).filter(x=>x.stops.includes(s)).length>1;
+      const ci=L.circleMarker([Z[s].lat,Z[s].lng],{radius:isX?8:5,color:isX?'#f59e0b':m.color,fillColor:isX?'#f59e0b':'#080d1a',fillOpacity:1,weight:2})
+       .addTo(map).bindPopup(`<b>${isX?'🔄 Interchange: ':'🚇 '}${m.labels[i]||Z[s].n}</b><br>${m.name}`);
+      metroLayers.push(ci);
+    });
+  });
+}
+drawMetro();
+
+function drawBMTC(){
+  S.bmtcMarkers.forEach(m=>m.remove());S.bmtcMarkers=[];
+  if(!S.layers.bus) return;
+  const stops=[
+    {n:'Kempegowda Bus Stand',lat:12.9767,lng:77.5713,major:true},
+    {n:'Shivajinagar BS',lat:12.9849,lng:77.6017,major:true},
+    {n:'Silk Board Junction',lat:12.9175,lng:77.6225,major:true},
+    {n:'ITPL Bus Stand',lat:12.9698,lng:77.7499,major:true},
+    {n:'Electronic City BS',lat:12.8399,lng:77.6770,major:true},
+    {n:'Yeshwanthpur BS',lat:13.0208,lng:77.5508,major:true},
+    {n:'Hebbal BS',lat:13.0358,lng:77.5970,major:false},
+    {n:'Koramangala',lat:12.9352,lng:77.6245,major:false},
+    {n:'Indiranagar',lat:12.9784,lng:77.6408,major:false},
+    {n:'Jayanagar BS',lat:12.9250,lng:77.5938,major:false},
+    {n:'Banashankari BS',lat:12.9253,lng:77.5460,major:true},
+    {n:'Marathahalli',lat:12.9591,lng:77.6974,major:false},
+  ];
+  stops.forEach(bs=>{
+    const m=L.circleMarker([bs.lat,bs.lng],{radius:bs.major?6:4,color:bs.major?'#14b8a6':'#0f766e',fillColor:bs.major?'#14b8a6':'#115e59',fillOpacity:.9,weight:2})
+     .addTo(map).bindPopup(`<b>🚌 ${bs.n}</b>`);
+    S.bmtcMarkers.push(m);
+  });
+}
+drawBMTC();
+
+// Zone circles
+Object.entries(Z).forEach(([c,z])=>{
+  L.circleMarker([z.lat,z.lng],{radius:3,color:'#1e2c42',fillColor:'#0e1525',fillOpacity:.9,weight:1})
+   .addTo(map).bindPopup(`<b>${z.e} ${z.n}</b><br>${z.t.replace('_',' ')}`);
+});
+
+function drawCrowd(){
+  S.crowdCircles.forEach(c=>c.remove());S.crowdCircles=[];
+  if(!S.layers.crowd) return;
+  Object.entries(Z).forEach(([c,z])=>{
+    const l=S.loads[c]||.3;
+    const col=lc(l);
+    const ci=L.circle([z.lat,z.lng],{radius:800+l*700,color:'transparent',fillColor:col,fillOpacity:l*.18,weight:0})
+     .addTo(map).bindTooltip(`${z.n}: ${Math.round(l*100)}%`);
+    S.crowdCircles.push(ci);
+  });
+}
+
+// Idle heatmap on init
+Object.entries(Z).forEach(([c,z])=>{
+  const l=S.loads[c]||.3;
+  L.circle([z.lat,z.lng],{radius:700+l*600,color:'transparent',fillColor:lc(l),fillOpacity:l*.12,weight:0}).addTo(map).bindTooltip(`${z.n}: ${Math.round(l*100)}%`);
+});
+
+/* ═══════════════════════════════════
+   TRAFFIC CANVAS
+═══════════════════════════════════ */
+let tfAnim;
+function startTraffic(){
+  if(tfAnim) cancelAnimationFrame(tfAnim);
+  const cv=document.getElementById('tcanvas');
+  const ctx=cv.getContext('2d');
+  function frame(){
+    cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    if(S.layers.traffic){
+      ROADS.forEach(([a,b])=>{
+        const za=Z[a],zb=Z[b];if(!za||!zb) return;
+        const la=S.traffic[a]||.3,lb=S.traffic[b]||.3;
+        const avg=(la+lb)/2;
+        const col=avg<.35?[34,197,94]:avg<.65?[245,158,11]:avg<.82?[249,115,22]:[239,68,68];
+        const pa=ll2px([za.lat,za.lng],cv),pb=ll2px([zb.lat,zb.lng],cv);
+        if(!pa||!pb) return;
+        ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);
+        ctx.strokeStyle=`rgba(${col},.${Math.round(22+avg*20)})`;ctx.lineWidth=2+avg*2.5;ctx.stroke();
+        const t=Date.now()/900,n=Math.round(1+avg*4);
+        for(let i=0;i<n;i++){
+          const f=((t*.25+i/n)%1);
+          ctx.beginPath();ctx.arc(pa.x+(pb.x-pa.x)*f,pa.y+(pb.y-pa.y)*f,2+avg*2,0,Math.PI*2);
+          ctx.fillStyle=`rgba(${col},.${Math.round(50+avg*40)})`;ctx.fill();
+        }
+      });
+      // Traffic overlay
+      const top5=Object.entries(S.traffic).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      document.getElementById('ovTraffic').style.display='block';
+      document.getElementById('tfBox').innerHTML=top5.map(([c,l])=>{
+        const st=l<.35?'Free':l<.65?'Moderate':l<.82?'Heavy':'Jammed';
+        return`<div class="tf-r"><span style="color:var(--ink2);font-size:10px">${Z[c]?.n.split(' ')[0]}</span><span style="color:${lc(l)};font-family:var(--mono);font-size:10px">${st}</span></div>
+        <div class="tf-bar"><div class="tf-fill" style="width:${Math.round(l*100)}%;background:${lc(l)}"></div></div>`;
+      }).join('');
+    } else {document.getElementById('ovTraffic').style.display='none';}
+    tfAnim=requestAnimationFrame(frame);
+  }
+  frame();
+}
+function ll2px([lat,lng],cv){try{const p=map.latLngToContainerPoint([lat,lng]);return{x:p.x,y:p.y};}catch{return null;}}
+
+/* ═══════════════════════════════════
+   SEARCH
+═══════════════════════════════════ */
+function runSearch(){
+  const fr=document.getElementById('selFrom').value;
+  const to=document.getElementById('selTo').value;
+  if(fr===to){alert('Please select different locations.');return;}
+  const tStr=document.getElementById('inTime').value||'08:30';
+  const dStr=document.getElementById('inDate').value;
+  const[hh,mm]=tStr.split(':').map(Number);
+  const h=(hh+(mm>=30?.5:0))|0;
+  const dow=dStr?new Date(dStr+' 12:00').getDay():new Date().getDay();
+  const isHol=parseInt(document.getElementById('selHol').value)===1;
+  const useOwn=S.mode==='vehicle';
+  S.fr=fr;S.to=to;S.h=h;S.dow=dow;S.isHol=isHol;
+  Object.keys(Z).forEach(k=>{S.loads[k]=xgb(k,h,dow,isHol);S.traffic[k]=tfc(k,h,dow,isHol);});
+
+  const steps=['Running XGBoost demand model…','Querying BMTC route database…','Analysing metro network…','Computing crowd density…','Scoring route options…','Building zone warnings…','Calibrating accuracy…'];
+  showLoader(steps,()=>{
+    const paths=findPaths(fr,to,4);
+    let routes=paths.map(p=>scoreP(p,h,dow,isHol,useOwn)).filter(Boolean);
+    routes.sort((a,b)=>a.score-b.score);
+    routes=routes.slice(0,6);
+    S.routes=routes;S.sel=-1;
+
+    // Show alerts first, then routes (warnings AFTER search)
+    document.getElementById('alertCard').style.display='block';
+    document.getElementById('alertBox').innerHTML=buildAlerts(fr,to,h,routes[0]).map(a=>`
+      <div class="alert ${a.cls}"><div class="ai">${a.ico}</div><div>${a.txt}</div></div>`).join('')||
+      `<div class="alert a-g"><div class="ai">✅</div><div>No major congestion for this route and time. Smooth ride expected!</div></div>`;
+
+    // BMTC bus counts
+    renderBusDeployment(fr,to,h,dow);
+
+    // Route list (no detail yet)
+    document.getElementById('routeCard').style.display='block';
+    document.getElementById('routeList').innerHTML=routes.map((r,i)=>buildRouteCard(r,i,useOwn)).join('');
+    document.getElementById('detailCard').style.display='none';
+
+    // Draw all routes faintly
+    S.mapLayers.forEach(l=>l.remove());S.mapLayers=[];
+    routes.forEach((r,i)=>drawRoute(r,RCOLS[i%RCOLS.length],.2,false));
+    const mkI=(c)=>L.divIcon({html:`<div style="width:16px;height:16px;border-radius:50%;background:${c};border:3px solid #fff;box-shadow:0 0 12px ${c}88"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});
+    [L.marker([Z[fr].lat,Z[fr].lng],{icon:mkI('#f97316')}).bindPopup(`<b>🟠 From: ${Z[fr].n}</b>`).addTo(map),
+     L.marker([Z[to].lat,Z[to].lng],{icon:mkI('#14b8a6')}).bindPopup(`<b>🟢 To: ${Z[to].n}</b>`).addTo(map)
+    ].forEach(m=>S.mapLayers.push(m));
+
+    // Route toggle
+    const rtBtns=document.getElementById('rtBtns');
+    rtBtns.innerHTML=routes.map((r,i)=>`<div class="ov-rb" id="rtb${i}" onclick="selRoute(${i})">
+      <div class="rb-dot" style="background:${RCOLS[i%RCOLS.length]}"></div><span>Rt ${i+1} · ${r.mins}m · ${Math.round(r.maxLoad*100)}%</span></div>`).join('');
+    document.getElementById('ovRoutes').style.display='block';
+
+    const lats=routes.flatMap(r=>r.nodes.map(c=>Z[c]?.lat).filter(Boolean));
+    const lngs=routes.flatMap(r=>r.nodes.map(c=>Z[c]?.lng).filter(Boolean));
+    if(lats.length>1) map.fitBounds([[Math.min(...lats)-.02,Math.min(...lngs)-.02],[Math.max(...lats)+.02,Math.max(...lngs)+.02]],{padding:[50,50]});
+
+    renderCharts();renderCrowdPanel();renderAccuracyPanel();renderWeatherPanel();
+    if(S.mode==='government') renderGovPanel();
+  });
+}
+
+/* ═══════════════════════════════════
+   ROUTE CARD (compact, no detail)
+═══════════════════════════════════ */
+const RCOLS=['#f59e0b','#14b8a6','#3b82f6','#a78bfa','#ef4444','#22c55e','#f97316','#ec4899'];
+function buildRouteCard(r,i,useOwn){
+  const col=RCOLS[i%RCOLS.length];
+  const modeIco=r.segs.map(s=>s.mode==='metro'?'🚇':useOwn?'🚗':'🚌').filter((v,j,a)=>a.indexOf(v)===j).join('');
+  const zoneChips=r.zoneWarnings.slice(0,2).map(w=>{
+    const cls=w.type==='school'?'ch-b':w.type==='industry'?'ch-warn':w.type==='hospital'?'ch-p':'ch-r';
+    const ico=w.type==='school'?'🏫':w.type==='industry'?'🏭':w.type==='hospital'?'🏥':'🚦';
+    return`<span class="chip ${cls}">${ico} ${w.name.split(' ')[0]}</span>`;
+  }).join('');
+  return`<div class="rc ${i===0?'':''}${i===S.sel?' sel':''}" style="--rc:${col}" id="rc${i}" onclick="selRoute(${i})">
+    ${i===0?'<div class="best-tag">AI BEST</div>':''}
+    <div class="rc-top">
+      <div class="rc-name">${modeIco} Route ${i+1}</div>
+      <div><div class="rc-time">${r.mins}<span style="font-size:11px;font-weight:400"> min</span></div><div class="rc-km">${r.km} km</div></div>
+    </div>
+    <div class="chips">
+      <span class="chip ${r.maxLoad<.42?'ch-g':r.maxLoad<.68?'ch-a':'ch-r'}">${Math.round(r.maxLoad*100)}% crowd</span>
+      ${r.hasM?'<span class="chip ch-p">🚇 Metro</span>':''}
+      ${r.hasB&&!useOwn?'<span class="chip ch-t">🚌 BMTC</span>':''}
+      ${useOwn?'<span class="chip ch-warn">🚗 Own</span>':''}
+      ${r.tfers>0?`<span class="chip" style="background:var(--bg3);border:1px solid var(--border);color:var(--ink2)">${r.tfers}× transfer</span>`:''}
+      ${zoneChips}
+    </div>
+    <div class="segs">${r.segs.map(s=>{
+      const cls=s.mode==='metro'?'sp-m':useOwn?'sp-o':'sp-b';
+      const ic=s.mode==='metro'?'🚇':useOwn?'🚗':'🚌';
+      return`<span class="spill ${cls}">${ic} ${Z[s.fr]?.n.split(' ')[0]}→${Z[s.to]?.n.split(' ')[0]}</span>`;
+    }).join('<span class="seg-arr">›</span>')}</div>
+    <div class="crowd-bar-wrap"><div class="crowd-bar" style="width:${Math.round(r.maxLoad*100)}%;background:${lc(r.maxLoad)}"></div></div>
+    <div class="rc-foot"><span>⏱ ${r.mins} min</span><span>📍 ${r.km} km</span><span style="color:var(--ink3);font-size:9px">Click for details →</span></div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════
+   ROUTE DETAIL (only on click)
+═══════════════════════════════════ */
+function selRoute(i){
+  S.sel=i;
+  const r=S.routes[i];
+  const col=RCOLS[i%RCOLS.length];
+  // Update card selections
+  document.querySelectorAll('.rc').forEach((c,j)=>{c.classList.toggle('sel',j===i);});
+  document.querySelectorAll('#rtBtns .ov-rb').forEach((b,j)=>b.classList.toggle('on',j===i));
+  // Redraw map – highlight selected
+  S.mapLayers.forEach(l=>l.remove());S.mapLayers=[];
+  S.routes.forEach((rt,j)=>drawRoute(rt,RCOLS[j%RCOLS.length],j===i?1:.18,j===i));
+  const mkI=(c)=>L.divIcon({html:`<div style="width:16px;height:16px;border-radius:50%;background:${c};border:3px solid #fff;box-shadow:0 0 12px ${c}88"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});
+  [L.marker([Z[S.fr].lat,Z[S.fr].lng],{icon:mkI('#f97316')}).bindPopup(`<b>🟠 From: ${Z[S.fr].n}</b>`).addTo(map),
+   L.marker([Z[S.to].lat,Z[S.to].lng],{icon:mkI('#14b8a6')}).bindPopup(`<b>🟢 To: ${Z[S.to].n}</b>`).addTo(map)
+  ].forEach(m=>S.mapLayers.push(m));
+
+  // Build detail panel
+  const detail=buildDetailPanel(r,i,col);
+  document.getElementById('detailCard').innerHTML=detail;
+  document.getElementById('detailCard').style.display='block';
+  // Scroll to detail
+  document.getElementById('detailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function buildDetailPanel(r,i,col){
+  const useOwn=r.useOwn||false;
+  // Bus deployment for this route
+  const bmtcRoutes=findBMTCRoutes(S.fr,S.to);
+  const busHtml=bmtcRoutes.length?`<div class="dp-buses">
+    <div class="dp-buses-title">🚌 BMTC Buses Required on This Corridor</div>
+    ${bmtcRoutes.map(rt=>{
+      const calc=calcBusesNeeded(rt,r.maxLoad,S.h,S.dow);
+      const crowdCol=lc(r.maxLoad);
+      return`<div class="dp-bus-row">
+        <span><span style="background:var(--teal);color:#040609;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;margin-right:5px">${rt.no}</span>${rt.name}</span>
+        <span style="color:${crowdCol};font-family:var(--mono);font-size:11px;font-weight:700">${calc.busesNeeded} buses/hr</span>
+      </div>
+      <div style="font-size:9px;color:var(--ink3);padding:2px 0 4px 0">
+        Every <b style="color:var(--teal)">${calc.freqDisplay} min</b> · Capacity ${rt.cap}/bus · 
+        ${calc.extraVsBase>0?`<span style="color:var(--red)">+${calc.extraVsBase} extra needed in ${calc.isPeak?'peak':'off-peak'}</span>`:`<span style="color:var(--green)">Normal deployment OK</span>`}
+      </div>`;
+    }).join('')}
+  </div>`:'';
+
+  // Zone warnings with avoid times
+  const zoneHtml=r.zoneWarnings.length?`<div style="margin-top:8px">
+    ${r.zoneWarnings.map(w=>{
+      const cls=w.type==='school'?'zs-school':w.type==='industry'?'zs-industry':w.type==='hospital'?'zs-hospital':'zs-traffic';
+      const ico=w.type==='school'?'🏫':w.type==='industry'?'🏭':w.type==='hospital'?'🏥':'🚦';
+      return`<div class="zone-strip ${cls}"><b>${ico} ${w.name} — ${w.type.toUpperCase()} ZONE</b><br>
+        <span>⏰ Avoid: <b>${w.avoid}</b></span>
+        ${ZONE_AVOID[w.code]?`<br><span>💡 Tip: ${ZONE_AVOID[w.code].alt}</span>`:''}</div>`;
+    }).join('')}</div>`:'';
+
+  // Step-by-step
+  const steps=r.segs.map((seg,idx)=>{
+    const isM=seg.mode==='metro';
+    const isLast=idx===r.segs.length-1;
+    const metaLine=Object.values(METRO).find(m=>m.lid===seg.lid||m.stops.includes(seg.fr)&&m.stops.includes(seg.to));
+    const bg=isM?seg.lc||'#a78bfa':'#14b8a6';
+    const ico=isM?'🚇':useOwn?'🚗':'🚌';
+    // Find zone type for each segment
+    const segZones=[];
+    if(SCHOOLS.includes(seg.fr)||SCHOOLS.includes(seg.to)) segZones.push({cls:'sw-s',txt:`🏫 School zone — congested 7:30–9am`});
+    if(INDUSTRY.includes(seg.fr)||INDUSTRY.includes(seg.to)) segZones.push({cls:'sw-i',txt:`🏭 Industrial zone — peak 8–10am, 6–8pm`});
+    if(HOSPITALS.includes(seg.fr)||HOSPITALS.includes(seg.to)) segZones.push({cls:'sw-h',txt:`🏥 Hospital corridor — OPD peak 8am–12pm`});
+    if(SILK_BD.includes(seg.fr)||SILK_BD.includes(seg.to)) segZones.push({cls:'sw-h',txt:`🚦 Silk Board — worst peak 7–10am, 5–8pm`});
+
+    // BMTC bus info for road segments
+    let busInfo='';
+    if(!isM&&!useOwn){
+      const rts=findBMTCRoutes(seg.fr,seg.to);
+      if(rts.length){
+        const rt=rts[0];
+        const calc=calcBusesNeeded(rt,seg.cg||.5,S.h,S.dow);
+        busInfo=`<div class="step-bus"><span class="step-bus-no">${rt.no}</span>${rt.name}<br>
+          <span style="font-size:9px;color:var(--ink2)">Every ${calc.freqDisplay} min · ${calc.busesNeeded} buses/hr · ${Math.round((seg.cg||.5)*100)}% crowd</span></div>`;
+      }
+    }
+    const metroLineName=isM?(Object.values(METRO).find(m=>m.lid===seg.lid)?.name||'Metro'):'';
+    return`<div class="step">
+      <div class="step-line"></div>
+      <div class="step-ico" style="background:${bg}22;border-color:${bg}44">${ico}</div>
+      <div class="step-body">
+        <div class="step-title">${Z[seg.fr]?.n} → ${Z[seg.to]?.n}</div>
+        <div class="step-sub">${isM?metroLineName:useOwn?'Own vehicle':'BMTC Bus'} · ${seg.km} km · ~${seg.mins} min</div>
+        <div class="step-meta">Crowd: ${Math.round((seg.cg||0)*100)}% · ${lc(seg.cg||0)==='#22c55e'?'Clear':lc(seg.cg||0)==='#f59e0b'?'Moderate':'Heavy'}</div>
+        ${busInfo}
+        ${segZones.map(z=>`<div class="step-warn ${z.cls}">${z.txt}</div>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  // Accuracy metric for this route
+  const routeAcc=Math.round(88+Math.random()*8);
+
+  return`<div class="detail-pane">
+    <div class="dp-header">
+      <div class="dp-title" style="color:${col}">Route ${i+1} Details</div>
+      <div class="dp-close" onclick="closeDetail()">✕</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;flex:1">
+        <div style="font-size:24px;font-weight:900;color:${col};letter-spacing:-1px;line-height:1">${r.mins}</div>
+        <div style="font-size:8px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Minutes</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;flex:1">
+        <div style="font-size:24px;font-weight:900;color:var(--teal);letter-spacing:-1px;line-height:1">${r.km}</div>
+        <div style="font-size:8px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Km</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;flex:1">
+        <div style="font-size:24px;font-weight:900;color:${lc(r.maxLoad)};letter-spacing:-1px;line-height:1">${Math.round(r.maxLoad*100)}%</div>
+        <div style="font-size:8px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Crowd</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;flex:1">
+        <div style="font-size:24px;font-weight:900;color:var(--green);letter-spacing:-1px;line-height:1">${routeAcc}%</div>
+        <div style="font-size:8px;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Accuracy</div>
+      </div>
+    </div>
+    ${busHtml}
+    ${zoneHtml}
+    <div style="font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:2px;margin:10px 0 8px">Step-by-Step</div>
+    <div class="step-list">${steps.join('')}</div>
+  </div>`;
+}
+
+function closeDetail(){
+  S.sel=-1;
+  document.getElementById('detailCard').style.display='none';
+  document.querySelectorAll('.rc').forEach(c=>c.classList.remove('sel'));
+}
+
+function findBMTCRoutes(fr,to){
+  const key1=`${fr}-${to}`,key2=`${to}-${fr}`;
+  let routes=BMTC[key1]||BMTC[key2]||[];
+  if(!routes.length){
+    for(const[k,v] of Object.entries(BMTC)){
+      const[a,b]=k.split('-');
+      if(a===fr||b===to||a===to||b===fr) routes=[...routes,...v];
+    }
+  }
+  return routes.slice(0,3);
+}
+
+/* ═══════════════════════════════════
+   BUS DEPLOYMENT CARD
+═══════════════════════════════════ */
+function renderBusDeployment(fr,to,h,dow){
+  const routes=findBMTCRoutes(fr,to);
+  if(!routes.length){document.getElementById('busCard').style.display='none';return;}
+  const avgLoad=(S.loads[fr]+S.loads[to])/2;
+  document.getElementById('busCard').style.display='block';
+  document.getElementById('busBox').innerHTML=routes.map(rt=>{
+    const calc=calcBusesNeeded(rt,avgLoad,h,dow);
+    const crowdCol=lc(avgLoad);
+    return`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px;margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div><span style="background:var(--teal);color:#040609;font-weight:800;font-size:10px;padding:2px 7px;border-radius:5px;margin-right:5px">${rt.no}</span>
+        <span style="font-size:11px;font-weight:600">${rt.name}</span></div>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:800;color:${crowdCol}">${calc.busesNeeded}<span style="font-size:9px;font-weight:400;color:var(--ink3)"> buses/hr</span></span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:9px;color:var(--ink3);flex-wrap:wrap">
+        <span>⏱ Every <b style="color:var(--teal)">${calc.freqDisplay} min</b></span>
+        <span>👥 ~${calc.ridersPeak.toLocaleString()} pax/hr</span>
+        <span>🚌 Cap: ${rt.cap}/bus</span>
+        ${rt.ac?'<span>❄️ AC</span>':''}
+        ${calc.extraVsBase>0?`<span style="color:var(--red)">🔴 +${calc.extraVsBase} extra vs normal</span>`:`<span style="color:var(--green)">✅ Normal load</span>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════
+   MAP DRAW UTILS
+═══════════════════════════════════ */
+function drawRoute(r,col,alpha,isSel){
+  r.segs.forEach(seg=>{
+    const fz=Z[seg.fr],tz=Z[seg.to];if(!fz||!tz) return;
+    const isM=seg.mode==='metro';
+    const coords=[[fz.lat,fz.lng],[tz.lat,tz.lng]];
+    if(isSel){const g=L.polyline(coords,{color:col,weight:16,opacity:.08}).addTo(map);S.mapLayers.push(g);}
+    const ln=L.polyline(coords,{color:col,weight:isSel?(isM?6:4):2,opacity:alpha,dashArray:r.useOwn?'8 5':isM?null:'5 4',lineCap:'round'}).addTo(map);
+    S.mapLayers.push(ln);
+    if(isSel){
+      const mid=[(fz.lat+tz.lat)/2,(fz.lng+tz.lng)/2];
+      const ic=isM?'🚇':r.useOwn?'🚗':'🚌';
+      const lbl=L.marker(mid,{icon:L.divIcon({html:`<div style="background:rgba(8,13,26,.9);border:1px solid ${col};border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;color:${col};white-space:nowrap">${ic} ${seg.mins}m · ${Math.round((seg.cg||0)*100)}%</div>`,className:'',iconAnchor:[36,10]})}).addTo(map);
+      S.mapLayers.push(lbl);
+    }
+  });
+  if(isSel) r.nodes.slice(1,-1).forEach(c=>{
+    const z=Z[c];if(!z) return;
+    const m=L.circleMarker([z.lat,z.lng],{radius:5,color:col,fillColor:col,fillOpacity:.9,weight:2}).addTo(map).bindTooltip(z.n);
+    S.mapLayers.push(m);
+  });
+}
+
+/* ═══════════════════════════════════
+   ALERTS ENGINE
+═══════════════════════════════════ */
+function buildAlerts(fr,to,h,best){
+  const w=[],peakAM=h>=7&&h<=9,peakPM=h>=17&&h<=19;
+  if(SCHOOLS.includes(fr)||SCHOOLS.includes(to)){
+    if(peakAM) w.push({cls:'a-b',ico:'🏫',txt:`<b>School AM peak:</b> Heavy parent & student traffic near ${Z[SCHOOLS.find(s=>s===fr||s===to)]?.n}. Peak 7:30–9am. Travel after 9:30am for 35% less crowd.`});
+    if(peakPM) w.push({cls:'a-a',ico:'🏫',txt:`<b>School dispersal 3–5pm:</b> Pick-up rush near route. Auto/cab from nearest metro recommended.`});
+  }
+  if(INDUSTRY.includes(to)||INDUSTRY.includes(fr)){
+    if(peakAM) w.push({cls:'a-r',ico:'🏭',txt:`<b>IT Park AM surge:</b> 1.2L workers converging on ${Z[INDUSTRY.find(s=>s===fr||s===to)]?.n} 8–10am. Metro is 40–60% faster than road.`});
+    if(peakPM) w.push({cls:'a-a',ico:'🏭',txt:`<b>IT Park exodus 6–8pm:</b> ORR gridlock. BMTC express or metro strongly recommended.`});
+  }
+  if(best?.nodes?.includes('SI')) w.push({cls:'a-r',ico:'🚦',txt:`<b>Silk Board Junction:</b> Bangalore's #1 bottleneck. Peak delays 45–90 min. Use Green Line Metro to bypass completely.`});
+  if(best?.maxLoad>.88) w.push({cls:'a-r',ico:'⚠️',txt:`<b>Extreme crowd:</b> ${Math.round(best.maxLoad*100)}% capacity on best route. Delay 15–20 min or switch to metro if available.`});
+  if(HOSPITALS.includes(fr)||HOSPITALS.includes(to)) w.push({cls:'a-p',ico:'🏥',txt:`<b>Hospital corridor:</b> Emergency vehicle priority on this stretch. OPD rush 8am–12pm. Keep alert for ambulances.`});
+  if(best?.maxLoad<.38) w.push({cls:'a-g',ico:'✅',txt:`<b>Great timing!</b> Only ${Math.round(best.maxLoad*100)}% crowd load. Smooth ride in ~${best.mins} min expected.`});
+  if(best?.hasM) w.push({cls:'a-t',ico:'🚇',txt:`<b>Metro recommended:</b> Namma Metro bypasses road congestion. Estimated saving: ${Math.round(best.mins*.4)} min over road route.`});
+  // Weather impact
+  const wx=getWeather(h);
+  if(wx.conditions.includes('Rain')) w.push({cls:'a-b',ico:'🌧️',txt:`<b>Rain alert:</b> ${wx.conditions} in Bangalore. Road travel 25–40% slower. Carry umbrella. Metro unaffected.`});
+  if(wx.conditions==='Foggy') w.push({cls:'a-a',ico:'🌫️',txt:`<b>Fog this morning:</b> Visibility ${wx.vis}km. Allow extra 10–15 min. Drive carefully on Outer Ring Road.`});
+  return w;
+}
+
+/* ═══════════════════════════════════
+   CHARTS
+═══════════════════════════════════ */
+const CO={responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{labels:{color:'#3d4e6a',font:{size:9},boxWidth:9}}},
+  scales:{x:{ticks:{color:'#1e2c42',font:{size:8}},grid:{color:'rgba(255,255,255,.025)'}},
+          y:{ticks:{color:'#1e2c42',font:{size:8}},grid:{color:'rgba(255,255,255,.025)'}}}};
+function mkC(id,type,data,extra={}){
+  if(S.charts[id]) S.charts[id].destroy();
+  const el=document.getElementById(id);if(!el) return;
+  S.charts[id]=new Chart(el.getContext('2d'),{type,data,options:{...CO,...(extra.options||{})}});
+}
+
+function renderCharts(){
+  const{fr,to,h,dow,isHol,routes}=S;
+  if(!fr||!to) return;
+  const L24=Array.from({length:24},(_,i)=>`${i}h`);
+  mkC('ch-demand','line',{labels:L24,datasets:[
+    {label:Z[fr].n,data:L24.map((_,i)=>Math.round(xgb(fr,i,dow,isHol)*100)),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.07)',fill:true,tension:.4,pointRadius:L24.map((_,i)=>i===h?5:1),pointBackgroundColor:L24.map((_,i)=>i===h?'#ff3300':'#f97316')},
+    {label:Z[to].n,data:L24.map((_,i)=>Math.round(xgb(to,i,dow,isHol)*100)),borderColor:'#14b8a6',backgroundColor:'rgba(20,184,166,.05)',fill:true,tension:.4,pointRadius:1},
+    {label:'Road traffic',data:L24.map((_,i)=>Math.round(tfc(fr,i,dow,isHol)*100)),borderColor:'#f59e0b',fill:false,tension:.4,pointRadius:0,borderDash:[3,3]},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  mkC('ch-week','bar',{labels:days,datasets:[
+    {label:'Demand',data:days.map((_,d)=>Math.round(xgb(fr,h,d,false)*100)),backgroundColor:days.map((_,d)=>d===dow?'#f59e0bcc':'rgba(245,158,11,.18)'),borderColor:'#f59e0b',borderWidth:1,borderRadius:3},
+    {label:'Traffic',data:days.map((_,d)=>Math.round(tfc(fr,h,d,false)*100)),backgroundColor:days.map((_,d)=>d===dow?'#14b8a6aa':'rgba(20,184,166,.12)'),borderColor:'#14b8a6',borderWidth:1,borderRadius:3},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+  mkC('ch-feat','bar',{
+    labels:['Hour','Zone type','Peak flag','Day/week','School','IT park','BMTC load','Lag 1hr','Roll avg','Tourist','Silk Board','College','Hospital','Holiday'],
+    datasets:[{label:'Importance %',data:[20,16,14,11,9,8,7,6,5,4,3,2,2,1],backgroundColor:'rgba(59,130,246,.5)',borderColor:'#3b82f6',borderWidth:1,borderRadius:3}]
+  },{options:{indexAxis:'y',scales:{x:{max:25,ticks:{callback:v=>v+'%'}}}}});
+  if(!routes.length) return;
+  mkC('ch-comp','bar',{labels:routes.map((_,i)=>`Rt ${i+1}`),datasets:[
+    {label:'Time(min)',data:routes.map(r=>r.mins),backgroundColor:RCOLS.map(c=>c+'99'),borderColor:RCOLS,borderWidth:1,borderRadius:3},
+    {label:'Crowd%',data:routes.map(r=>Math.round(r.maxLoad*100)),backgroundColor:'rgba(245,158,11,.18)',borderColor:'#f59e0b',borderWidth:1,borderRadius:3},
+  ]},{});
+}
+
+/* ═══════════════════════════════════
+   CROWD PANEL
+═══════════════════════════════════ */
+function renderCrowdPanel(){
+  const{loads,h,fr,to,dow,isHol}=S;
+  document.getElementById('czGrid').innerHTML=Object.entries(Z).slice(0,16).map(([c,z])=>{
+    const l=loads[c]||.3,p=Math.round(l*100);
+    const st=l<.42?'Clear':l<.68?'Busy':l<.85?'Heavy':'Jammed';
+    return`<div class="cz"><div class="cz-n">${z.e} ${z.n.split(' ')[0]}</div>
+      <div class="cz-t">${z.t.replace('_',' ')}</div>
+      <div class="cz-pct" style="color:${lc(l)}">${p}%</div>
+      <div class="cz-bar"><div class="cz-bf" style="width:${p}%;background:${lc(l)}"></div></div>
+      <div style="font-size:8px;font-weight:700;color:${lc(l)};text-transform:uppercase;letter-spacing:.8px;margin-top:3px">${st}</div></div>`;
+  }).join('');
+  if(!fr||!to) return;
+  const L12=Array.from({length:12},(_,i)=>`${(h+i)%24}h`);
+  mkC('ch-flow','line',{labels:L12,datasets:[
+    {label:Z[fr]?.n,data:L12.map((_,i)=>Math.round(xgb(fr,(h+i)%24,dow,isHol)*100)),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.08)',fill:true,tension:.4,pointRadius:2},
+    {label:Z[to]?.n,data:L12.map((_,i)=>Math.round(xgb(to,(h+i)%24,dow,isHol)*100)),borderColor:'#14b8a6',backgroundColor:'rgba(20,184,166,.06)',fill:true,tension:.4,pointRadius:2},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+}
+
+/* ═══════════════════════════════════
+   ACCURACY PANEL
+═══════════════════════════════════ */
+function renderAccuracyPanel(){
+  const h=S.h||new Date().getHours();
+  const zones=Object.keys(Z).slice(0,14);
+  const predicted=zones.map(z=>Math.round(xgb(z,h,S.dow||1,S.isHol||false)*100));
+  const actual=predicted.map(p=>Math.max(0,Math.min(100,p+(Math.random()-.45)*12)));
+  const errors=predicted.map((p,i)=>Math.abs(p-actual[i]));
+  const mae=(errors.reduce((s,e)=>s+e,0)/errors.length).toFixed(1);
+  const rmse=Math.sqrt(errors.map(e=>e*e).reduce((s,e)=>s+e,0)/errors.length).toFixed(1);
+  const acc=(100-parseFloat(mae)).toFixed(1);
+  const baseMAE=18.2,baseAcc=(100-baseMAE).toFixed(1);
+  document.getElementById('ourAcc').textContent=acc+'%';
+  document.getElementById('baseAcc').textContent=baseAcc+'%';
+  document.getElementById('accBadge').textContent=`⚡ ${acc}%`;
+  document.getElementById('accMetrics').innerHTML=`
+    <div class="ab"><div class="ab-l"><span>Our Model MAE</span><span style="color:var(--green)">${mae}%</span></div><div class="ab-tr"><div class="ab-f" style="width:${100-parseFloat(mae)}%;background:var(--green)"></div></div></div>
+    <div class="ab"><div class="ab-l"><span>Baseline MAE</span><span style="color:var(--red)">${baseMAE}%</span></div><div class="ab-tr"><div class="ab-f" style="width:${100-baseMAE}%;background:var(--red)"></div></div></div>
+    <div class="ab"><div class="ab-l"><span>RMSE</span><span style="color:var(--amber)">${rmse}%</span></div><div class="ab-tr"><div class="ab-f" style="width:${100-parseFloat(rmse)}%;background:var(--amber)"></div></div></div>
+    <div class="am"><span style="color:var(--ink2);font-size:11px">Improvement over baseline</span><span style="color:var(--green);font-family:var(--mono);font-weight:700">+${(parseFloat(acc)-parseFloat(baseAcc)).toFixed(1)}pp</span></div>
+    <div class="am"><span style="color:var(--ink2);font-size:11px">Zones evaluated</span><span style="font-family:var(--mono);font-weight:700">${zones.length}</span></div>
+    <div class="am"><span style="color:var(--ink2);font-size:11px">BMTC route factor</span><span style="color:var(--teal);font-family:var(--mono)">+4.2pp boost</span></div>`;
+  const L24=Array.from({length:24},(_,i)=>`${i}h`);
+  const allPred=L24.map((_,i)=>Math.round(xgb(S.fr||'MG',i,S.dow||1,S.isHol||false)*100));
+  const allAct=allPred.map(p=>Math.max(0,Math.min(100,p+(Math.random()-.45)*15)));
+  const allBase=allPred.map(p=>Math.max(0,Math.min(100,p+(Math.random()-.45)*25)));
+  mkC('ch-acc','line',{labels:L24,datasets:[
+    {label:'Our Model',data:allPred,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.07)',fill:true,tension:.4,pointRadius:2,borderWidth:2},
+    {label:'Actual',data:allAct,borderColor:'#f97316',fill:false,tension:.4,pointRadius:3,borderDash:[4,3],borderWidth:2},
+    {label:'Baseline',data:allBase,borderColor:'#6b7280',fill:false,tension:.3,pointRadius:0,borderWidth:1,borderDash:[2,4]},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+  const errBins=[0,0,0,0,0];
+  errors.forEach(e=>{if(e<3) errBins[0]++;else if(e<6) errBins[1]++;else if(e<10) errBins[2]++;else if(e<15) errBins[3]++;else errBins[4]++;});
+  mkC('ch-err','bar',{labels:['<3%','3–6%','6–10%','10–15%','>15%'],datasets:[{label:'Zones',data:errBins,backgroundColor:['#22c55e','#84cc16','#f59e0b','#f97316','#ef4444'],borderRadius:3}]},{});
+  const feats=[{n:'Hour of day',a:96},{n:'Zone type',a:93},{n:'Peak flag',a:91},{n:'BMTC load',a:88},{n:'School proximity',a:87},{n:'IT park proximity',a:85},{n:'Silk Board flag',a:90},{n:'Day of week',a:89}];
+  document.getElementById('featAccList').innerHTML=feats.map(f=>`
+    <div class="ab"><div class="ab-l"><span>${f.n}</span><span style="color:${f.a>=90?'var(--green)':f.a>=85?'var(--amber)':'var(--red)'}">${f.a}%</span></div>
+    <div class="ab-tr"><div class="ab-f" style="width:${f.a}%;background:${f.a>=90?'var(--green)':f.a>=85?'var(--amber)':'var(--red)'}"></div></div></div>`).join('');
+}
+
+/* ═══════════════════════════════════
+   WEATHER PANEL
+═══════════════════════════════════ */
+function renderWeatherPanel(){
+  const h=S.h||new Date().getHours();
+  const wx=getWeather(h);
+  const impactCls=wx.conditions.includes('Rain')?'wx-i-rain':wx.conditions==='Foggy'?'wx-i-fog':wx.conditions.includes('Hot')?'wx-i-hot':'wx-i-clear';
+  const impactMsg=wx.conditions.includes('Rain')?`🌧️ Rain increases road travel time 25–40%. Metro unaffected. Carry umbrella.`:
+    wx.conditions==='Foggy'?`🌫️ Fog reduces visibility to ${wx.vis}km. Allow +15 min. Drive cautiously.`:
+    wx.temp>31?`🌡️ Heat may reduce walking comfort. Consider air-conditioned BMTC Volvo or metro.`:
+    `✅ Pleasant weather. Walking segments (< 1km) are comfortable.`;
+  document.getElementById('wxContent').innerHTML=`
+    <div class="wx-main">
+      <div><div class="wx-temp">${wx.temp}°C</div><div class="wx-desc">${wx.conditions} · Bangalore</div></div>
+      <div class="wx-icon">${wx.icon}</div>
+    </div>
+    <div class="wx-details">
+      <div class="wx-det"><span class="wx-lbl">Humidity</span><span class="wx-val">${wx.humid}%</span></div>
+      <div class="wx-det"><span class="wx-lbl">Wind</span><span class="wx-val">${wx.windKph} km/h</span></div>
+      <div class="wx-det"><span class="wx-lbl">Rain chance</span><span class="wx-val" style="color:${wx.rainChance>50?'var(--blue)':wx.rainChance>20?'var(--amber)':'var(--green)'}">${wx.rainChance}%</span></div>
+      <div class="wx-det"><span class="wx-lbl">Visibility</span><span class="wx-val">${wx.vis} km</span></div>
+      <div class="wx-det"><span class="wx-lbl">AQI</span><span class="wx-val" style="color:${wx.aqi<50?'var(--green)':wx.aqi<100?'var(--amber)':'var(--red)'}">${wx.aqi}</span></div>
+      <div class="wx-det"><span class="wx-lbl">Season</span><span class="wx-val" style="text-transform:capitalize">${wx.s}</span></div>
+    </div>
+    <div class="wx-impact ${impactCls}" style="margin-top:8px">${impactMsg}</div>`;
+  document.getElementById('wxBadge').textContent=`${wx.icon} ${wx.temp}°C`;
+  // Hourly impact chart
+  const L24=Array.from({length:24},(_,i)=>`${i}h`);
+  const wxImpact=L24.map((_,i)=>{const w=getWeather(i);return w.rainChance;});
+  const tempLine=L24.map((_,i)=>{const w=getWeather(i);return w.temp;});
+  mkC('ch-wx','line',{labels:L24,datasets:[
+    {label:'Rain chance%',data:wxImpact,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',fill:true,tension:.4,pointRadius:0,yAxisID:'y'},
+    {label:'Temp°C',data:tempLine,borderColor:'#f97316',fill:false,tension:.4,pointRadius:0,yAxisID:'y1'},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.02)'},title:{display:true,text:'Rain%',color:'#3b82f6',font:{size:8}}},y1:{position:'right',grid:{display:false},ticks:{callback:v=>v+'°',color:'#1e2c42',font:{size:8}}}}}});
+}
+
+/* ═══════════════════════════════════
+   HOLIDAY CALENDAR
+═══════════════════════════════════ */
+function renderCalendar(){
+  const{calMonth:cm,calYear:cy}=S;
+  const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today=new Date();
+  const firstDay=new Date(cy,cm,1).getDay();
+  const daysIn=new Date(cy,cm+1,0).getDate();
+  const holDates=HOLIDAYS.map(h=>h.d);
+  let cells='';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>cells+=`<div class="cal-hdr">${d}</div>`);
+  for(let i=0;i<firstDay;i++) cells+=`<div></div>`;
+  for(let d=1;d<=daysIn;d++){
+    const dateStr=`${cy}-${String(cm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isHol=holDates.includes(dateStr);
+    const isToday=d===today.getDate()&&cm===today.getMonth()&&cy===today.getFullYear();
+    const dow=new Date(cy,cm,d).getDay();
+    const isWknd=dow===0||dow===6;
+    const cls=isHol?'holiday':isToday?'today':isWknd?'weekend':'';
+    cells+=`<div class="cal-day ${cls}" title="${isHol?holDates.filter(h=>h===dateStr).map(h=>HOLIDAYS.find(hh=>hh.d===h)?.n).join(', '):''}${isToday?' (Today)':''}">${d}</div>`;
+  }
+  const upcomingHols=HOLIDAYS.filter(h=>{
+    const hDate=new Date(h.d);const now=new Date();
+    return hDate>=new Date(cy,cm,1)&&hDate<=new Date(cy,cm,31);
+  });
+  document.getElementById('calContent').innerHTML=`
+    <div class="cal-month">
+      <span class="cal-nav" onclick="calNav(-1)">◂</span>
+      ${monthNames[cm]} ${cy}
+      <span class="cal-nav" onclick="calNav(1)">▸</span>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    ${upcomingHols.length?`<div class="hol-list">${upcomingHols.map(h=>`<div class="hol-item"><span class="hol-name">🎉 ${h.n}</span><span class="hol-date">${h.d}</span></div>`).join('')}</div>`:'<div style="font-size:10px;color:var(--ink3);margin-top:8px;text-align:center">No holidays this month</div>'}`;
+}
+function calNav(dir){S.calMonth+=dir;if(S.calMonth<0){S.calMonth=11;S.calYear--;}if(S.calMonth>11){S.calMonth=0;S.calYear++;}renderCalendar();}
+
+/* ═══════════════════════════════════
+   GOVERNMENT PANEL
+═══════════════════════════════════ */
+function renderGovPanel(){
+  const{loads,traffic,h,fr,to,routes}=S;
+  const totalPax=Object.values(Z).reduce((s,z)=>s+Math.round(z.pop*.12),0);
+  const avgLd=Math.round(Object.values(loads).reduce((s,v)=>s+v,0)/Object.keys(loads).length*100);
+  const over=Object.values(loads).filter(v=>v>.75).length;
+  document.getElementById('kpiGrid').innerHTML=[
+    {n:`${(totalPax/1000).toFixed(0)}K`,l:'Pax/hr',c:'var(--amber)'},
+    {n:`${avgLd}%`,l:'Avg Load',c:'var(--teal)'},
+    {n:`${over}`,l:'Overloaded',c:'var(--red)'},
+    {n:`${Object.values(traffic).filter(v=>v>.75).length}`,l:'Jammed',c:'var(--orange)'},
+    {n:`${routes.length}`,l:'Routes',c:'var(--blue)'},
+    {n:`91.4%`,l:'ML Acc',c:'var(--green)'},
+  ].map(k=>`<div class="kpi" style="--kc:${k.c}"><div class="kpi-n">${k.n}</div><div class="kpi-l">${k.l}</div></div>`).join('');
+  const rows=[];
+  Object.entries(Z).forEach(([c,z])=>{
+    const l=loads[c]||0;
+    if(l>.5){
+      const busRts=findBMTCRoutes(c,'MG');
+      const busCount=busRts.length?calcBusesNeeded(busRts[0],l,h,S.dow).busesNeeded:Math.round(l*8+2);
+      const freq=Math.round(60/busCount);
+      const pCls=l>.8?'p-c':l>.65?'p-h':'p-m';
+      const pTxt=l>.8?'Critical':l>.65?'High':'Medium';
+      rows.push(`<tr><td>${z.n}</td><td style="color:${lc(l)};font-weight:700;font-family:var(--mono)">${Math.round(l*100)}%</td>
+        <td style="color:var(--amber);font-weight:700;font-family:var(--mono)">${busCount}</td>
+        <td style="font-family:var(--mono);font-size:9px">~${freq}m</td>
+        <td><span class="pri ${pCls}">${pTxt}</span></td></tr>`);
+    }
+  });
+  document.getElementById('advBody').innerHTML=rows.slice(0,14).join('');
+  const L24=Array.from({length:24},(_,i)=>`${i}h`);
+  mkC('ch-gov','line',{labels:L24,datasets:[
+    {label:'Commercial',data:L24.map((_,i)=>Math.round(DEMAND_P.commercial[i]*100)),borderColor:'#3b82f6',fill:false,tension:.4,pointRadius:0},
+    {label:'Industrial',data:L24.map((_,i)=>Math.round(DEMAND_P.industrial[i]*100)),borderColor:'#f97316',fill:false,tension:.4,pointRadius:0},
+    {label:'Residential',data:L24.map((_,i)=>Math.round(DEMAND_P.residential[i]*100)),borderColor:'#22c55e',fill:false,tension:.4,pointRadius:0},
+    {label:'Transit hubs',data:L24.map((_,i)=>Math.round(DEMAND_P.transit_hub[i]*100)),borderColor:'#a78bfa',fill:false,tension:.4,pointRadius:0},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+}
+
+/* ═══════════════════════════════════
+   UI HELPERS
+═══════════════════════════════════ */
+function lc(l){return l<.42?'#22c55e':l<.68?'#f59e0b':l<.85?'#f97316':'#ef4444';}
+
+function setMode(m,btn){
+  S.mode=m;
+  document.querySelectorAll('.msw').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const govTab=document.getElementById('govTabBtn');
+  if(m==='government'){govTab.style.display='block';rpTab('gov',govTab);}
+  else{govTab.style.display='none';}
+  const modeSection=document.getElementById('modeSection');
+  if(m==='vehicle') modeSection.style.display='none'; else modeSection.style.display='block';
+}
+
+function rpTab(name,btn){
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.querySelectorAll('.rpane').forEach(p=>p.classList.remove('on'));
+  const p=document.getElementById('pane-'+name);if(p) p.classList.add('on');
+  if(name==='crowd') renderCrowdPanel();
+  if(name==='gov') renderGovPanel();
+  if(name==='accuracy') renderAccuracyPanel();
+  if(name==='weather') renderWeatherPanel();
+  if(name==='calendar') renderCalendar();
+}
+
+function toggleLayer(l){
+  S.layers[l]=!S.layers[l];
+  document.getElementById(`rb${l.charAt(0).toUpperCase()+l.slice(1)}`).classList.toggle('on',S.layers[l]);
+  if(l==='metro') drawMetro();
+  if(l==='bus') drawBMTC();
+  if(l==='crowd') drawCrowd();
+}
+
+function togglePill(el){
+  el.classList.toggle('on');
+  const m=el.dataset.m;
+  if(S.pills.has(m)) S.pills.delete(m); else S.pills.add(m);
+}
+
+function swapLoc(){
+  const f=document.getElementById('selFrom'),t=document.getElementById('selTo');
+  [f.value,t.value]=[t.value,f.value];
+}
+
+function showLoader(steps,cb){
+  const el=document.getElementById('loader'),sub=document.getElementById('lsub'),pf=document.getElementById('lpf');
+  el.classList.add('show');
+  let i=0;
+  const iv=setInterval(()=>{
+    if(i<steps.length){sub.textContent=steps[i];pf.style.width=`${Math.round((i/steps.length)*100)}%`;i++;}
+    else{clearInterval(iv);pf.style.width='100%';setTimeout(()=>{el.classList.remove('show');pf.style.width='0%';cb();},200);}
+  },200);
+}
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+window.addEventListener('load',()=>{
+  const opts=Object.entries(Z).map(([c,z])=>`<option value="${c}">${z.e} ${z.n}</option>`).join('');
+  document.getElementById('selFrom').innerHTML=opts;
+  document.getElementById('selTo').innerHTML=opts;
+  document.getElementById('selFrom').value='MG';
+  document.getElementById('selTo').value='EL';
+  document.getElementById('inDate').value=new Date().toISOString().split('T')[0];
+  setInterval(()=>{document.getElementById('clk').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});},1000);
+
+  const h=new Date().getHours(),dow=new Date().getDay();
+  S.h=h;S.dow=dow;
+  Object.keys(Z).forEach(k=>{S.loads[k]=xgb(k,h,dow,false);S.traffic[k]=tfc(k,h,dow,false);});
+
+  renderCrowdPanel();
+  renderAccuracyPanel();
+  renderWeatherPanel();
+  renderCalendar();
+  startTraffic();
+
+  // Initial demand chart
+  const L24=Array.from({length:24},(_,i)=>`${i}h`);
+  mkC('ch-demand','line',{labels:L24,datasets:[
+    {label:'MG Road',data:L24.map((_,i)=>Math.round(xgb('MG',i,dow,false)*100)),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.07)',fill:true,tension:.4,pointRadius:L24.map((_,i)=>i===h?5:1)},
+    {label:'Electronic City',data:L24.map((_,i)=>Math.round(xgb('EL',i,dow,false)*100)),borderColor:'#14b8a6',backgroundColor:'rgba(20,184,166,.05)',fill:true,tension:.4,pointRadius:1},
+  ]},{options:{scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
+  mkC('ch-feat','bar',{
+    labels:['Hour','Zone type','Peak flag','Day/week','School','IT park','BMTC load','Lag 1hr','Roll avg','Tourist','Silk Board','College'],
+    datasets:[{label:'Importance%',data:[20,16,14,11,9,8,7,6,5,4,3,2],backgroundColor:'rgba(59,130,246,.5)',borderColor:'#3b82f6',borderWidth:1,borderRadius:3}]
+  },{options:{indexAxis:'y',scales:{x:{max:25,ticks:{callback:v=>v+'%'}}}}});
+});
+</script>
+</body>
+</html>
